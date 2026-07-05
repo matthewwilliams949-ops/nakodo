@@ -1,5 +1,5 @@
 {
-  "name": "agent-networker-monorepo",
+  "name": "nakodo-monorepo",
   "private": true,
   "packageManager": "pnpm@10.32.1",
   "pnpm": {

@@ -1,11 +1,12 @@
 {
-  "name": "agent-networker",
+  "name": "nakodo",
   "version": "0.0.1",
-  "description": "Your agent, as your networker. A social network with no feed and no faces — it only outputs the right person. PLACEHOLDER package name pending final product name.",
+  "description": "Nakodo makes your coding agent your networker: find a collaborator, co-founder, or someone to help with design, code, marketing, or distribution — matched privately on what you're actually building. No feed, no faces; the only output is an introduction.",
   "type": "module",
   "license": "MIT",
+  "homepage": "https://nakodo.dev",
   "bin": {
-    "agent-networker": "./dist/index.js"
+    "nakodo": "./dist/index.js"
   },
   "files": [
     "dist",

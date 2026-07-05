@@ -1,7 +1,7 @@
 // All product email is plain text: on-brand (no performance) and better
-// deliverability from a fresh domain. PLACEHOLDER name — rename pass updates.
+// deliverability from a fresh domain.
 
-const PRODUCT = 'Agent Networker' // PLACEHOLDER
+const PRODUCT = 'Nakodo'
 
 export function welcome(): { subject: string; text: string } {
   return {

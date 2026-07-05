@@ -3,11 +3,10 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { registerTools } from './tools.js'
 
-// PLACEHOLDER server name/description — rename pass updates alongside npm name.
-// The description is part of the Motion 3 surface: it's what registries index.
+// The name/instructions are part of the Motion 3 surface: registries index them.
 const server = new McpServer(
   {
-    name: 'agent-networker',
+    name: 'nakodo',
     version: '0.0.1',
   },
   {

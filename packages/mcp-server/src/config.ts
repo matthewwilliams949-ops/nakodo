@@ -3,11 +3,9 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-// PLACEHOLDER names — the rename pass (BUILD-PLAN M1) updates the config dir,
-// env-var prefix, and production API URL.
-const ENV_PREFIX = 'AGENT_NETWORKER'
-const DIR_NAME = 'agent-networker'
-const DEFAULT_API_URL = 'https://agent-networker.example'
+const ENV_PREFIX = 'NAKODO'
+const DIR_NAME = 'nakodo'
+const DEFAULT_API_URL = 'https://nakodo.dev'
 
 export interface Config {
   install_id: string

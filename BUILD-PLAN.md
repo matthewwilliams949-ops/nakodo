@@ -1,8 +1,8 @@
-# BUILD-PLAN.md — Agent Networker v1
+# BUILD-PLAN.md — Nakodo v1
 
 *2026-07-05 · The **how** companion to [SCOPE.md](SCOPE.md) (the **why**). A fresh agent session should read SCOPE.md, then this file, then the milestone checklist below to know exactly where the build stands and what to do next.*
 
-*`<name>` throughout = the product name, pending the naming session (see [NAME-BRIEF.md](NAME-BRIEF.md)). M1 includes a rename pass once it lands.*
+*Name decided 2026-07-05: **Nakodo** (npm `nakodo`, nakodo.dev) — see SCOPE.md "Name" and [documentation/nakodo-brand-guide.md](documentation/nakodo-brand-guide.md). Rename pass done. The repo folder is still `agent-networker` (pre-naming working title).*
 
 ---
 
@@ -14,7 +14,7 @@
 4. **`delete_me` is a v1 tool** — deletes the user and everything attached, returns confirmation. It is the fifth trust guarantee and goes in the pitch alongside the other four.
 5. **Name before build.** Naming session (Matthew) is the true build item 0 — it blocks npm package, domain, repo name, site.
 
-**Architecture in one paragraph:** the npm package is a *thin stdio client* — it speaks MCP to the local agent and HTTPS to our API; it holds no logic and no privileged credentials. All state, matching data, telemetry, and email flows live behind the Next.js API with Supabase Postgres. Per-user API tokens are issued at registration and stored in `~/.config/<name>/config.json`. We iterate on the experiment server-side without users updating the package.
+**Architecture in one paragraph:** the npm package is a *thin stdio client* — it speaks MCP to the local agent and HTTPS to our API; it holds no logic and no privileged credentials. All state, matching data, telemetry, and email flows live behind the Next.js API with Supabase Postgres. Per-user API tokens are issued at registration and stored in `~/.config/nakodo/config.json`. We iterate on the experiment server-side without users updating the package.
 
 ---
 
@@ -23,7 +23,7 @@
 Monorepo, pnpm workspaces, TypeScript strict everywhere, Node ≥ 20.
 
 ```
-<name>/
+nakodo/
 ├── CLAUDE.md                  # agent onboarding: stack, commands, conventions, current milestone
 ├── SCOPE.md                   # the why (already written)
 ├── BUILD-PLAN.md              # this file — keep the milestone checklist current
@@ -31,14 +31,14 @@ Monorepo, pnpm workspaces, TypeScript strict everywhere, Node ≥ 20.
 ├── pnpm-workspace.yaml
 ├── .github/workflows/ci.yml   # typecheck + test on push
 ├── packages/
-│   └── mcp-server/            # → published to npm as `<name>` (or scoped variant)
+│   └── mcp-server/            # → published to npm as `nakodo` (or scoped variant)
 │       ├── src/
 │       │   ├── index.ts       # stdio entry (bin), MCP server setup
 │       │   ├── tools/         # find_collaborator, capture_snippet, my_record, delete_me
 │       │   ├── api-client.ts  # typed HTTPS client for the backend
-│       │   └── config.ts      # ~/.config/<name>/config.json (email, token, install_id)
+│       │   └── config.ts      # ~/.config/nakodo/config.json (email, token, install_id)
 │       ├── test/              # protocol-level integration tests (see M3)
-│       └── package.json       # bin entry so `npx <name>` works
+│       └── package.json       # bin entry so `npx nakodo` works
 ├── apps/
 │   └── web/                   # Next.js on Vercel: site + API in one deploy
 │       ├── app/
@@ -75,8 +75,8 @@ Rules encoded in the flow, not just policy: decline ends an intro silently (no n
 Each is sized to roughly one agent session and has a **machine-verifiable done-condition** so the building agent can self-verify without Matthew. Work top to bottom; check items off in place.
 
 ### M0 — Name + accounts *(Matthew-only, ~90 min after the naming session)*
-- [ ] Name chosen per NAME-BRIEF.md (npm/domain/registry collisions checked)
-- [ ] Domain registered
+- [x] Name chosen per NAME-BRIEF.md (npm/domain/registry collisions checked): **Nakodo** / npm `nakodo` / nakodo.dev
+- [ ] Domain registered: **nakodo.dev** (open flag before public launch: trademark read vs. "Nakoda", see brand guide)
 - [ ] npm account ready + package name claimed (publish a 0.0.1 placeholder to reserve it)
 - [ ] GitHub repo created on matthewwilliams949-ops (private until launch week)
 - [ ] Supabase project created (EU region — Frankfurt)
@@ -88,7 +88,7 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 ### M1 — Repo scaffold
 - [x] Monorepo per skeleton above; pnpm workspaces; TS strict; vitest; CI workflow (typecheck + test)
 - [x] CLAUDE.md written: stack, dev commands, conventions, "current milestone" pointer
-- [ ] Rename pass: replace `agent-networker` placeholders everywhere once M0 lands (checklist in CLAUDE.md "Placeholder name")
+- [x] Rename pass: Nakodo everywhere (npm name/bin, `NAKODO_*` env vars, `~/.config/nakodo/`, https://nakodo.dev, emails, site, READMEs, docs)
 - [x] `db/schema.sql` written; tests run it against PGlite (in-memory Postgres) — applying to Supabase happens in M0 step 4
 - **Done when:** fresh clone → `pnpm install && pnpm test && pnpm typecheck` green in CI; `next dev` serves a stub page. ✅ (CI run itself pending the GitHub repo from M0)
 
@@ -107,7 +107,7 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - [x] `my_record` — own profile + snippets + open asks, nothing about anyone else
 - [x] `delete_me(confirm)` — refuses without confirm=true, calls `DELETE /api/me`, wipes local config
 - [x] Tool descriptions written for agent-search (Motion 3), real phrasings, no keyword-stuffing; protocol test asserts the phrasings stay present
-- [x] Local config: `~/.config/agent-networker/config.json` with install_id / email / token (env-overridable for tests)
+- [x] Local config: `~/.config/nakodo/config.json` with install_id / email / token (env-overridable for tests)
 - [x] **Protocol-level integration tests**: server spawned over stdio via the MCP SDK client against a mock API (9 tests: onboarding, registration, ask, snippet, record, delete)
 - [ ] Manual: MCP Inspector connect + onboarding check (fold into Checkpoint A demo)
 - **Done when:** protocol tests green ✅, AND MCP Inspector connects and `find_collaborator` with no profile returns the onboarding prompt.
@@ -121,9 +121,9 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - [ ] Real email round-trip against Resend (needs M0 step 6; fold into Checkpoint A)
 - **Done when:** accept/accept → reveal and accept/decline → silence pass in the suite ✅, and a real email round-trip works against Resend in dev.
 
-### M5 — One-page site (structure done; copy is placeholder until the name lands)
+### M5 — One-page site (copy done; deploy pending M0)
 - [x] Page structure + first-pass copy: one-liner, **five** trust guarantees (incl. delete_me), install command, privacy note. Nothing else
-- [ ] Rename pass: real name, real npm command, agent-config snippet, contact email
+- [x] Rename pass: real name, real npm command, agent-config snippet, contact email (hello@nakodo.dev)
 - [ ] Deploy on the domain (M0 step 5), check mobile
 - **Done when:** deployed on the domain, Lighthouse-clean, renders on mobile.
 
@@ -133,7 +133,7 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - **Done when:** `pnpm metrics` prints the full funnel table against live data.
 
 ### M7 — Package, publish, hook
-- [ ] npm publish (real version), `npx <name>` cold-start verified on a clean machine/user
+- [ ] npm publish (real version), `npx nakodo` cold-start verified on a clean machine/user
 - [ ] README: install for Claude Code / Cursor / Claude Desktop, the trust guarantees, the one-liner
 - [ ] Optional Claude Code session-end hook (`capture_snippet` prompt) documented in README
 - [ ] Directory submissions prepared: official MCP registry, mcp.so, Smithery, PulseMCP (submit at launch, M8)

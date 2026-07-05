@@ -31,8 +31,8 @@ beforeAll(async () => {
     cwd: PKG_ROOT,
     env: {
       ...getDefaultEnvironment(),
-      AGENT_NETWORKER_CONFIG_DIR: configDir,
-      AGENT_NETWORKER_API_URL: api.url,
+      NAKODO_CONFIG_DIR: configDir,
+      NAKODO_API_URL: api.url,
     },
   })
   client = new Client({ name: 'test-client', version: '0.0.0' })
@@ -45,7 +45,7 @@ afterAll(async () => {
   rmSync(configDir, { recursive: true, force: true })
 })
 
-describe('agent-networker over stdio', () => {
+describe('nakodo over stdio', () => {
   it('exposes exactly the v1 tools', async () => {
     const { tools } = await client.listTools()
     expect(tools.map((t) => t.name).sort()).toEqual([
