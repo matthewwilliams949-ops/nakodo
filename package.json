@@ -1,0 +1,25 @@
+{
+  "name": "agent-networker-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.32.1",
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "sharp"]
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check": "pnpm -r typecheck && pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:apply": "tsx scripts/db-apply.ts",
+    "smoke:email": "tsx scripts/smoke-email.ts",
+    "dev": "pnpm --filter web dev"
+  },
+  "devDependencies": {
+    "pg": "^8.16.0",
+    "resend": "^4.5.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0"
+  }
+}

@@ -86,41 +86,45 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - **Done when:** an agent can run `pnpm install && vercel env pull` and reach Supabase + Resend from local dev.
 
 ### M1 — Repo scaffold
-- [ ] Monorepo per skeleton above; pnpm workspaces; TS strict; vitest; CI workflow (typecheck + test)
-- [ ] CLAUDE.md written: stack, dev commands, conventions, "current milestone" pointer
-- [ ] Rename pass: replace `<name>` placeholders everywhere once M0 lands
-- [ ] `db/schema.sql` written and applied to Supabase (and to a local shadow db for tests if trivial; otherwise test against a dedicated Supabase branch/project)
-- **Done when:** fresh clone → `pnpm install && pnpm test && pnpm typecheck` green in CI; `next dev` serves a stub page.
+- [x] Monorepo per skeleton above; pnpm workspaces; TS strict; vitest; CI workflow (typecheck + test)
+- [x] CLAUDE.md written: stack, dev commands, conventions, "current milestone" pointer
+- [ ] Rename pass: replace `agent-networker` placeholders everywhere once M0 lands (checklist in CLAUDE.md "Placeholder name")
+- [x] `db/schema.sql` written; tests run it against PGlite (in-memory Postgres) — applying to Supabase happens in M0 step 4
+- **Done when:** fresh clone → `pnpm install && pnpm test && pnpm typecheck` green in CI; `next dev` serves a stub page. ✅ (CI run itself pending the GitHub repo from M0)
 
-### M2 — API foundation
-- [ ] `POST /api/register` — email (+ optional handle/location + **source: "how did the agent find this server"**) → creates user, issues token (store hash only), sends confirmation email via Resend
-- [ ] Token auth middleware for all subsequent endpoints
-- [ ] `POST /api/profile` (create/approve), `POST /api/snippets`, `POST /api/asks`, `GET /api/record`, `DELETE /api/me`
-- [ ] `POST /api/events` + automatic event row on every endpoint hit (this is the funnel instrument — nothing ships without it)
-- [ ] Endpoint integration tests (vitest against route handlers with a test db)
-- **Done when:** test suite exercises register → profile → snippet → record → delete end-to-end and passes in CI.
+### M2 — API foundation ✅
+- [x] `POST /api/register` — email (+ optional handle/location + **source: "how did the agent find this server"**) → creates user, issues token (store hash only), sends welcome email via Resend (no-op sender until M0 provides the key)
+- [x] Token auth (`lib/auth.ts`, Bearer → sha256 lookup) on all user endpoints
+- [x] `POST /api/profile` (upsert), `POST /api/snippets`, `POST /api/asks`, `GET /api/record`, `DELETE /api/me`
+- [x] `POST /api/events` (unauthenticated, `client_*`-namespaced) + event row on every funnel action
+- [x] Endpoint integration tests — vitest runs the real `schema.sql` in PGlite and calls the route handlers directly (14 tests)
+- **Done when:** test suite exercises register → profile → snippet → record → delete end-to-end and passes. ✅
 
-### M3 — MCP server
-- [ ] `find_collaborator(need)` — front door. No profile → returns onboarding instructions (agent synthesizes profile from session context, collects email, human approves, then registers). Profile exists → registers a **persisting** ask (SCOPE.md open question: v1 persists asks) and confirms
-- [ ] `capture_snippet(body)` — description states the human-approval rule explicitly; posts to API
-- [ ] `my_record` — returns own profile + snippets + open asks, nothing about anyone else
-- [ ] `delete_me` — confirms intent, calls `DELETE /api/me`, wipes local config
-- [ ] Tool descriptions written for agent-search (Motion 3): enumerate real phrasings — "find someone to help with design / marketing / distribution", "find a collaborator or co-founder", "get feedback from someone building something similar". Honest, no keyword-stuffing (directories and clients flag spammy manifests)
-- [ ] Local config: `~/.config/<name>/config.json` with install_id (generated on first run, pre-registration telemetry key), email, token
-- [ ] **Protocol-level integration tests**: spawn the server over stdio with the MCP SDK test client against a mocked/local API; assert the onboarding response, ask registration, snippet post, delete flow
-- **Done when:** protocol tests green in CI, AND MCP Inspector connects and `find_collaborator` with no profile returns the onboarding prompt.
+### M3 — MCP server ✅ (one manual check left)
+- [x] `find_collaborator(need)` — front door. No profile → onboarding instructions (incl. the attribution question). Profile exists → registers a **persisting** ask
+- [x] `create_profile` — registration tool the onboarding flow calls after human approval (email, approved profile, source, handle?, location?)
+- [x] `capture_snippet(snippet)` — description states the human-approval rule explicitly; posts to API
+- [x] `my_record` — own profile + snippets + open asks, nothing about anyone else
+- [x] `delete_me(confirm)` — refuses without confirm=true, calls `DELETE /api/me`, wipes local config
+- [x] Tool descriptions written for agent-search (Motion 3), real phrasings, no keyword-stuffing; protocol test asserts the phrasings stay present
+- [x] Local config: `~/.config/agent-networker/config.json` with install_id / email / token (env-overridable for tests)
+- [x] **Protocol-level integration tests**: server spawned over stdio via the MCP SDK client against a mock API (9 tests: onboarding, registration, ask, snippet, record, delete)
+- [ ] Manual: MCP Inspector connect + onboarding check (fold into Checkpoint A demo)
+- **Done when:** protocol tests green ✅, AND MCP Inspector connects and `find_collaborator` with no profile returns the onboarding prompt.
 
-### M4 — Intro flow (the trust guarantees, made mechanical)
-- [ ] Concierge creates an intro by inserting a row (via Supabase Studio — no admin UI in v1) with two hand-written anonymous cards; a script or endpoint fires the two card emails
-- [ ] Card email: anonymous card + tokenized accept/decline links → `app/intro/[token]` landing page
-- [ ] Both accept → reveal emails to both (names + emails, warm handoff copy). Any decline → intro closed **silently**; other side never notified, pending state simply never resolves
-- [ ] Tokens single-use, expiring; all transitions logged to `events`
-- [ ] Tests cover: both-accept reveal, one-decline silence, token reuse rejected
-- **Done when:** seeded test intro walks accept/accept → reveal and accept/decline → silence in the test suite, and a real email round-trip works against Resend in dev.
+### M4 — Intro flow (the trust guarantees, made mechanical) ✅ (Resend round-trip pending M0)
+- [x] Concierge creates an intro via `pnpm --filter web intro:send intro.json` (emails, two hand-written cards) — inserts the row and fires both card emails
+- [x] Card email: anonymous card + tokenized links → `app/intro/[token]` page (card + accept/pass buttons; state change is a POST, links alone never mutate)
+- [x] Both accept → reveal emails to both. Any decline → closed **silently**: the other side's view renders only from its own response, so a decline is indistinguishable from waiting — forever
+- [x] Responses idempotent (first response wins), tokens expire (14 days), all transitions logged to `events`
+- [x] Tests cover: both-accept reveal, one-decline silence + late-accept-after-decline, idempotency, expiry, unknown token
+- [ ] Real email round-trip against Resend (needs M0 step 6; fold into Checkpoint A)
+- **Done when:** accept/accept → reveal and accept/decline → silence pass in the suite ✅, and a real email round-trip works against Resend in dev.
 
-### M5 — One-page site
-- [ ] The one-liner, the **five** trust guarantees (incl. delete_me), the install command + 3-line agent-config snippet, contact email. Nothing else — no screenshots, no feature grid
-- [ ] Plain-language privacy note (what we store, where — EU, how to delete: the tool or an email)
+### M5 — One-page site (structure done; copy is placeholder until the name lands)
+- [x] Page structure + first-pass copy: one-liner, **five** trust guarantees (incl. delete_me), install command, privacy note. Nothing else
+- [ ] Rename pass: real name, real npm command, agent-config snippet, contact email
+- [ ] Deploy on the domain (M0 step 5), check mobile
 - **Done when:** deployed on the domain, Lighthouse-clean, renders on mobile.
 
 ### M6 — Telemetry + metrics snapshot
