@@ -1,0 +1,293 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Nakodo — Brand Guide</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&display=swap');
+  :root{
+    --carbon:#141311; --panel:#1E1C19; --panel-2:#232019; --line:#33302B;
+    --bone:#EDE8DE; --ash:#8F8A80; --amber:#E1A23C; --amber-ink:#241A08;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--carbon);color:var(--bone);font-family:'Inter',sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased;padding:0 0 100px}
+  .wrap{max-width:780px;margin:0 auto;padding:0 36px}
+  .mono{font-family:'JetBrains Mono',monospace}
+  a{color:var(--amber);text-decoration:none}
+
+  header{padding:74px 0 42px}
+  .mast{display:flex;align-items:center;gap:24px}
+  .wordmark{font-family:'JetBrains Mono';font-weight:500;font-size:58px;letter-spacing:-.03em;line-height:1;color:var(--bone)}
+  .tag{font-family:'JetBrains Mono';font-size:15px;color:var(--ash);margin:30px 0 16px}
+  .tag b{color:var(--bone);font-weight:500}
+  .lede{font-size:16.5px;color:var(--ash);max-width:56ch}
+  .status{font-family:'JetBrains Mono';font-size:11.5px;letter-spacing:.02em;color:var(--ash);margin-top:26px;padding-top:20px;border-top:1px solid var(--line)}
+  .status b{color:var(--bone);font-weight:500}
+
+  section{padding:40px 0;border-top:1px solid var(--line)}
+  .kicker{font-family:'JetBrains Mono';font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);margin-bottom:16px}
+  h2{font-family:'JetBrains Mono';font-weight:500;font-size:25px;letter-spacing:-.01em;margin-bottom:18px;line-height:1.2;color:var(--bone)}
+  h3{font-family:'Inter';font-weight:500;font-size:16px;margin:20px 0 4px;color:var(--bone)}
+  p{margin-bottom:13px;max-width:64ch}
+  .em{color:var(--bone);font-weight:500}
+  em{font-style:italic;color:var(--bone)}
+  ul{list-style:none;margin:8px 0 6px}
+  li{position:relative;padding-left:22px;margin-bottom:10px;max-width:62ch;color:var(--bone)}
+  li::before{content:"";position:absolute;left:2px;top:11px;width:6px;height:6px;background:var(--amber);border-radius:50%}
+  .small{font-size:13.5px;color:var(--ash)}
+  .thesis{font-family:'JetBrains Mono';font-size:17px;line-height:1.5;color:var(--bone);border-left:2px solid var(--amber);padding-left:20px;margin:18px 0}
+
+  table{border-collapse:collapse;width:100%;margin:10px 0 6px;font-size:14px}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-family:'JetBrains Mono';font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ash);font-weight:400}
+  td{color:var(--bone)}
+  td.k{font-family:'JetBrains Mono';font-size:12.5px;color:var(--amber);white-space:nowrap}
+
+  .marks{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:6px 0 4px}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px 14px 14px;text-align:center}
+  .tile.light{background:var(--bone);border-color:var(--bone)}
+  .tn{font-family:'JetBrains Mono';font-size:11.5px;font-weight:500;margin-top:14px;color:var(--bone)}
+  .tile.light .tn{color:var(--carbon)}
+  .tc{font-size:11.5px;color:var(--ash);line-height:1.4;margin-top:2px}
+  .tile.light .tc{color:#6B6659}
+
+  .cons{display:flex;align-items:center;gap:28px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px 30px;margin-top:6px}
+  .cons p{margin:0;font-size:14px;color:var(--ash)}
+  .cons p b{color:var(--bone);font-weight:500}
+
+  .sw{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:14px 0 4px}
+  .chip{height:60px;border-radius:10px;border:1px solid var(--line)}
+  .swn{font-size:12.5px;font-weight:500;margin-top:8px}
+  .swr{font-size:11px;color:var(--ash)}
+  .swh{font-family:'JetBrains Mono';font-size:10.5px;color:var(--ash)}
+
+  .say{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+  .say div.c{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .say .h{font-family:'JetBrains Mono';font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:9px}
+  .say .yes{color:var(--amber)}.say .no{color:var(--ash)}
+  .say p{font-size:13.5px;margin:0;color:var(--bone)}
+
+  .spec{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px 26px;font-family:'JetBrains Mono';font-size:13.5px;line-height:2;color:var(--bone)}
+  .spec .n{color:var(--ash);margin-right:6px}
+  .spec .kw{color:var(--amber);font-weight:500}
+
+  .type-specimen .tl{font-family:'JetBrains Mono';font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin-top:20px}
+  .ts-mono{font-family:'JetBrains Mono';font-weight:500;font-size:30px;letter-spacing:-.02em;color:var(--bone);margin-top:6px}
+  .ts-mono-it{font-family:'JetBrains Mono';font-style:italic;font-size:18px;color:var(--bone);margin-top:6px}
+  .ts-inter{font-size:17px;color:var(--bone);margin-top:6px}
+
+  .artifact{display:grid;grid-template-columns:1.05fr .95fr;gap:22px;align-items:start;margin-top:8px}
+  @media(max-width:640px){.artifact{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .card .bar{height:3px;background:var(--amber)}
+  .card .in{padding:22px 24px 20px}
+  .card .ch{font-family:'JetBrains Mono';font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);margin-bottom:16px}
+  .card .fact{display:flex;gap:14px;font-size:13.5px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .card .fact:last-of-type{border-bottom:none}
+  .card .fk{font-family:'JetBrains Mono';font-size:11.5px;color:var(--ash);min-width:78px;padding-top:2px}
+  .card .fv{color:var(--bone)}
+  .card .btns{display:flex;gap:10px;margin-top:18px}
+  .card .btn{font-family:'JetBrains Mono';font-size:13px;padding:9px 20px;border-radius:8px;border:1px solid var(--line);color:var(--bone)}
+  .card .btn.y{background:var(--amber);border-color:var(--amber);color:var(--amber-ink);font-weight:500}
+  .card .fine{font-size:12px;color:var(--ash);margin-top:14px}
+  .artifact .note{font-size:14px;color:var(--ash)}
+  .artifact .note b{color:var(--bone);font-weight:500}
+
+  .term{background:#0C0B0A;border:1px solid var(--line);border-radius:12px;padding:20px 22px;font-family:'JetBrains Mono';font-size:13.5px;line-height:1.8;margin-top:8px}
+  .term .p{color:var(--ash)}.term .c{color:var(--bone)}.term .a{color:var(--amber)}
+
+  .principle{display:flex;gap:20px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px 26px;margin-top:10px}
+  .principle p{font-size:14px;color:var(--ash);margin:0}
+  .principle p b{color:var(--bone);font-weight:500}
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="mast">
+      <svg width="82" height="82" viewBox="0 0 120 120" role="img" aria-label="Nakodo mark: the character hito, person">
+        <path d="M62 20 C59 30 56 44 53 58 C49 76 41 92 28 106 C31 89 37 71 43 56 C47 44 51 32 55 24 C57 20 61 18 62 20 Z" fill="#EDE8DE"/>
+        <path d="M55 38 C61 50 69 64 77 78 C84 90 90 99 96 105 C90 103 84 101 79 97 C70 89 63 76 57 64 C53 56 51 48 50 41 Z" fill="#EDE8DE"/>
+      </svg>
+      <div class="wordmark">nakodo</div>
+    </div>
+    <div class="tag mono">// no feed. no faces. <b>the only output is a person.</b></div>
+    <p class="lede">Your agent's networker — an MCP server that quietly turns your coding agent into the person who finds you the right collaborator. Silence is the resting state; the only thing it ever surfaces is an introduction.</p>
+    <div class="status mono">Brand guide · v1 · name checked (npm free; pending registrar + trademark read vs. <b>Nakoda</b>) · visual identity set · from 仲人 <b>nakōdo</b>, the go-between · pronounced <b>nah-KOH-doh</b></div>
+  </header>
+
+  <section>
+    <div class="kicker">The short version</div>
+    <h2>What Nakodo is</h2>
+    <p>Nakodo captures approved snippets of what you're building, compares them privately across users, and outputs exactly one thing: an introduction to the right person. No feed, no likes, no faces, no performance.</p>
+    <p class="em">The one-liner it lives next to:</p>
+    <div class="thesis">Your agent knows what you're building better than anyone. We make it your networker — a social network with no feed, no faces, and no performance, that only ever outputs one thing: the right person, today.</div>
+  </section>
+
+  <section>
+    <div class="kicker">The name</div>
+    <h2>Nakodo · 仲人</h2>
+    <p>From the Japanese <span class="em">仲人 (nakōdo)</span> — <em>naka</em> (between) + <em>hito</em> (person): the traditional go-between of an <em>omiai</em>, the arranged introduction. The name was chosen because the go-between's centuries-old job maps almost line-for-line onto the product's trust rules. It isn't a metaphor stretched to fit — the role already <em>is</em> the product.</p>
+    <table>
+      <tr><th>The nakōdo's role</th><th>The product's guarantee</th></tr>
+      <tr><td>Studies both sides in private before either has seen the other</td><td>The matcher sees everything; humans see nothing until double opt-in</td></tr>
+      <tr><td>Presents each party to the other in their best honest light</td><td>The agent as emissary — it pitches your work on your behalf</td></tr>
+      <tr><td>Carries interest <em>and refusal</em> indirectly, so no one loses face</td><td>Declines are never revealed, in either direction</td></tr>
+      <tr><td>Arranges the one meeting, then steps back</td><td>The only output is an intro — no feed, no browse surface</td></tr>
+    </table>
+    <p>The go-between's defining trait is <span class="em">discretion</span> — the deliberate opposite of the gossipy Yiddish <em>yenta</em>. Where the yenta performs, the nakōdo is quiet and trusted. That contrast is the anti-LinkedIn, anti-build-in-public stance in a single word.</p>
+    <p class="small"><b class="em">Availability.</b> <span class="mono">nakodo</span> is free on npm; nakodo.dev / .so / .app are open (.com taken, not required). No existing Nakodo MCP server, dev tool, or startup surfaced. One flag for the trademark read: <em>Nakoda</em> (with an <em>a</em>), a common Indian brand name.</p>
+  </section>
+
+  <section>
+    <div class="kicker">Visual identity · the mark</div>
+    <h2>人 — person, in two strokes</h2>
+    <p>The logo is the character 人 itself, in bone white: no accent, no stylization, no ornament. Drawn calligraphically — two curved brush strokes with tapered ends, crossing <em>just below the tip</em> so the left stroke rises above the join.</p>
+    <div class="cons">
+      <svg width="96" height="96" viewBox="0 0 120 120" role="img" aria-label="Construction of the hito mark, two brush strokes crossing below the tip">
+        <path d="M62 20 C59 30 56 44 53 58 C49 76 41 92 28 106 C31 89 37 71 43 56 C47 44 51 32 55 24 C57 20 61 18 62 20 Z" fill="#EDE8DE"/>
+        <path d="M55 38 C61 50 69 64 77 78 C84 90 90 99 96 105 C90 103 84 101 79 97 C70 89 63 76 57 64 C53 56 51 48 50 41 Z" fill="#EDE8DE"/>
+        <circle cx="54.5" cy="42" r="3.5" fill="none" stroke="#E1A23C" stroke-width="1.2" stroke-dasharray="3 3"/>
+      </svg>
+      <p><b>The crossing is deliberate.</b> Strokes that meet only at their points read as an arrow; strokes that cross read as the character. Balanced in weight, but with brush character — not a rigid mirror. It stays authentic (this is 人 as a brush writes it), and it holds down to favicon size. <b>The logo is also typeable:</b> 人 is U+4EBA, so it renders natively in terminals, READMEs and npm — the banner <span class="mono" style="color:var(--bone)">人 nakodo</span> needs no image.</p>
+    </div>
+    <div class="marks">
+      <div class="tile">
+        <svg width="76" height="76" viewBox="0 0 120 120" role="img" aria-label="Primary mark, bone on carbon">
+          <path d="M62 20 C59 30 56 44 53 58 C49 76 41 92 28 106 C31 89 37 71 43 56 C47 44 51 32 55 24 C57 20 61 18 62 20 Z" fill="#EDE8DE"/>
+          <path d="M55 38 C61 50 69 64 77 78 C84 90 90 99 96 105 C90 103 84 101 79 97 C70 89 63 76 57 64 C53 56 51 48 50 41 Z" fill="#EDE8DE"/>
+        </svg>
+        <div class="tn">primary</div><div class="tc">Bone on carbon</div>
+      </div>
+      <div class="tile">
+        <svg width="76" height="76" viewBox="0 0 120 120" role="img" aria-label="App icon, bone mark on carbon rounded square">
+          <rect x="8" y="8" width="104" height="104" rx="26" fill="#0C0B0A" stroke="#33302B" stroke-width="2"/>
+          <g transform="translate(60,60) scale(0.8) translate(-61,-63)">
+            <path d="M62 20 C59 30 56 44 53 58 C49 76 41 92 28 106 C31 89 37 71 43 56 C47 44 51 32 55 24 C57 20 61 18 62 20 Z" fill="#EDE8DE"/>
+            <path d="M55 38 C61 50 69 64 77 78 C84 90 90 99 96 105 C90 103 84 101 79 97 C70 89 63 76 57 64 C53 56 51 48 50 41 Z" fill="#EDE8DE"/>
+          </g>
+        </svg>
+        <div class="tn">app icon</div><div class="tc">Favicon · npm avatar</div>
+      </div>
+      <div class="tile light">
+        <svg width="76" height="76" viewBox="0 0 120 120" role="img" aria-label="Mark on light, carbon on bone">
+          <path d="M62 20 C59 30 56 44 53 58 C49 76 41 92 28 106 C31 89 37 71 43 56 C47 44 51 32 55 24 C57 20 61 18 62 20 Z" fill="#141311"/>
+          <path d="M55 38 C61 50 69 64 77 78 C84 90 90 99 96 105 C90 103 84 101 79 97 C70 89 63 76 57 64 C53 56 51 48 50 41 Z" fill="#141311"/>
+        </svg>
+        <div class="tn">on light</div><div class="tc">README contexts</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">Visual identity · palette</div>
+    <h2>Dark-first, one amber</h2>
+    <p>The audience lives in dark terminals, and the product's story is things developing quietly in the dark. So the ground is near-black; bone is the light. One warm colour — amber — is reserved <em>exclusively</em> for the moment an introduction happens. Scarcity is what makes it mean something; it never decorates ordinary UI, and never touches the mark.</p>
+    <div class="sw">
+      <div><div class="chip" style="background:#141311"></div><div class="swn">Carbon</div><div class="swr">Ground</div><div class="swh">#141311</div></div>
+      <div><div class="chip" style="background:#1E1C19"></div><div class="swn">Panel</div><div class="swr">Cards</div><div class="swh">#1E1C19</div></div>
+      <div><div class="chip" style="background:#EDE8DE"></div><div class="swn">Bone</div><div class="swr">Text · mark</div><div class="swh">#EDE8DE</div></div>
+      <div><div class="chip" style="background:#8F8A80"></div><div class="swn">Ash</div><div class="swr">Quiet text</div><div class="swh">#8F8A80</div></div>
+      <div><div class="chip" style="background:#E1A23C"></div><div class="swn">Amber</div><div class="swr">The intro only</div><div class="swh">#E1A23C</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">Visual identity · type</div>
+    <h2>Mono is the voice</h2>
+    <div class="type-specimen">
+      <div class="tl">JetBrains Mono medium · brand, headings, wordmark</div>
+      <div class="ts-mono">the right person, today.</div>
+      <div class="tl">JetBrains Mono italic · the quiet aside</div>
+      <div class="ts-mono-it">somewhere out there is the person you need.</div>
+      <div class="tl">Inter · body, when there's a lot to read</div>
+      <div class="ts-inter">Your agent knows what you're building better than anyone.</div>
+    </div>
+    <p class="small" style="margin-top:18px">Monospace is the primary register, not a garnish — it's the audience's native surface (the terminal, the README, the config file) and it carries the off-the-record, documentation tone. Inter does the heavy reading.</p>
+  </section>
+
+  <section>
+    <div class="kicker">The hero artifact</div>
+    <h2>The anonymous intro card</h2>
+    <p>This is the only thing the product ever shows anyone — so the identity is judged here, not on a poster. Relevant facts only: no name, no face, no link. Amber appears because this is the one moment it's earned.</p>
+    <div class="artifact">
+      <div class="card">
+        <div class="bar"></div>
+        <div class="in">
+          <div class="ch">an introduction · today</div>
+          <div class="fact"><span class="fk">who</span><span class="fv">someone in Berlin</span></div>
+          <div class="fact"><span class="fk">building</span><span class="fv">an agent-memory MCP server · 3 weeks in</span></div>
+          <div class="fact"><span class="fk">strong at</span><span class="fv">backend, evals — evidenced, not claimed</span></div>
+          <div class="fact"><span class="fk">needs</span><span class="fv">design help for a first public release</span></div>
+          <div class="fact"><span class="fk">why you</span><span class="fv">you've shipped two servers and said you're open to it</span></div>
+          <div class="btns"><span class="btn y">accept</span><span class="btn">pass</span></div>
+          <div class="fine">Pass, and they'll never know you were proposed.</div>
+        </div>
+      </div>
+      <div class="note">
+        <p><b>No name, no face.</b> The card is composed from the matcher's private view of both profiles; identities reveal only when both accept.</p>
+        <p><b>Amber is the event.</b> The top rule and the accept button are the only colour in the product — the introduction is the one thing worth lighting up.</p>
+        <p><b>Rejection is invisible.</b> Passing is silent in both directions; the other side is never told they were proposed.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">Where the brand lives</div>
+    <h2>The terminal</h2>
+    <p>Most people meet Nakodo as a command, not a logo. The install and first run carry the voice — quiet, terse, honest about the resting state.</p>
+    <div class="term">
+      <div><span class="p">$</span> <span class="c">npx nakodo</span></div>
+      <div><span class="c">人 nakodo — your agent's networker</span></div>
+      <div><span class="p">&gt;</span> <span class="c">profile on record. 3 snippets approved.</span></div>
+      <div><span class="p">&gt;</span> <span class="c">resting state: silence.</span> <span class="a">we'll surface one person when it matters.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">Voice &amp; tone</div>
+    <h2>The introvert's tool, written like docs</h2>
+    <p>Dry, discreet, anti-performance. It never sounds like a social network or a growth-hack; it speaks the way a trusted go-between would — understated, confident, allergic to hype.</p>
+    <div class="say">
+      <div class="c"><div class="h yes">Say</div><p>the right person · today · quietly · in private · an introduction · off the record · your agent knows · no feed, no faces</p></div>
+      <div class="c"><div class="h no">Don't say</div><p>network · grow your audience · build in public · engagement · viral · supercharge · AI-native · 10x · unlock</p></div>
+    </div>
+    <h3 style="margin-top:24px">The guarantees, written like a spec</h3>
+    <p>The four trust rules are the real differentiator, so they get the audience's native idiom for a promise you can hold someone to — RFC 2119 language, in mono.</p>
+    <div class="spec">
+      <div><span class="n">1.</span> Nothing is captured without per-snippet approval.</div>
+      <div><span class="n">2.</span> Profiles <span class="kw">MUST NOT</span> be displayed — only compared.</div>
+      <div><span class="n">3.</span> No feed exists. The only output is an introduction.</div>
+      <div><span class="n">4.</span> Declines <span class="kw">MUST NOT</span> be revealed. Ever.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">Guiding philosophy</div>
+    <h2>The person in between</h2>
+    <div class="principle">
+      <svg width="52" height="52" viewBox="0 0 120 120" role="img" aria-label="hito motif">
+        <path d="M62 20 C59 30 56 44 53 58 C49 76 41 92 28 106 C31 89 37 71 43 56 C47 44 51 32 55 24 C57 20 61 18 62 20 Z" fill="#8F8A80"/>
+        <path d="M55 38 C61 50 69 64 77 78 C84 90 90 99 96 105 C90 103 84 101 79 97 C70 89 63 76 57 64 C53 56 51 48 50 41 Z" fill="#8F8A80"/>
+      </svg>
+      <p>The whole brand is the behaviour of a good go-between: it knows more than either party, works behind a curtain, and reveals only what serves the meeting. The Japanese source stays underneath — in the name and the mark — never worn on the surface. A story you reveal, not explain.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">Lineage</div>
+    <h2>Sibling to Auno, by method not language</h2>
+    <p>Nakodo is the second Japanese-sourced name in this body of work, after <span class="em">Auno</span> (from <em>aun</em>, the paired breath). The two are unrelated products; the shared thread is the <em>method</em> — name the promise precisely at its source, then wear it lightly. Auno named <em>synchrony</em>; Nakodo names <em>the discreet introduction</em>. Where Auno is warm paper and one breath, Nakodo is dark, quiet, and one bright moment.</p>
+  </section>
+
+  <section>
+    <div class="kicker">What's next</div>
+    <h2>Open threads</h2>
+    <ul>
+      <li><span class="em">Clear the name</span> — registrar (nakodo.dev) + a trademark read on Nakodo vs. Nakoda. This gates everything.</li>
+      <li><span class="em">Finalise the mark</span> — redraw the two brush strokes in a vector tool for exact taper and foot flare; the current geometry is a close approximation.</li>
+      <li><span class="em">Build item 1</span> — the one-page site: the one-liner, the four guarantees, the install command. Nothing else.</li>
+      <li><span class="em">The intro card in production</span> — this artifact is the brand; get it pixel-right in email and in-session.</li>
+    </ul>
+  </section>
+
+</div>

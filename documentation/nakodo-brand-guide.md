@@ -1,7 +1,7 @@
 # Nakodo — Brand Guide
 
-*v0.1 · name decided 2026-07-05 · visual identity not yet designed*
-*Pronounced **nah-KOH-doh***
+*v0.3 · name decided 2026-07-05 · visual identity set 2026-07-06*
+*Pronounced **nah-KOH-doh** · visual showpiece: [nakodo-brand-guide.html](nakodo-brand-guide.html) (this file is the working reference; the HTML is the rendered guide)*
 
 ---
 
@@ -60,6 +60,47 @@ The nakōdo's home context is **marriage** matchmaking. For a collaborator/cofou
 
 ---
 
+## Visual identity (direction set 2026-07-06)
+
+Two directions were explored — A ("the go-between's study": warm washi ground, editorial serif, shrine vermilion) and B ("the blackbox": dark-first, monospace-led, an `o · o` mark). **Decision: Direction B, with a pure 人 as the mark instead of `o · o`** (Matthew, 2026-07-06). The identity is the blackbox: a quiet dark system in which the only bright thing that ever happens is an introduction.
+
+### The mark — 人 (*hito*, person), pure and monochrome
+
+The logo is the character 人 itself, in bone white: no accent dot, no stylization, no ornament. Drawn **calligraphically** — two curved brush strokes with tapered ends, crossing just below the tip so the left stroke rises above the join. The crossing (rather than a single shared apex) is deliberate: strokes that only meet at their very points read as an arrow or an A-frame; strokes that cross read as the character. Balanced in visual weight but with brush character, not a rigid mirror. It stays authentic — this is 人 as a brush writes it — and holds down to favicon size (~28px).
+
+- **Primary:** bone (#EDE8DE) on carbon (#141311) — the mark's home.
+- **On light:** carbon on bone, for READMEs and light contexts.
+- **App icon / favicon / npm avatar:** bone 人 on a carbon rounded square.
+- The mark is **always monochrome**. Amber never touches the logo.
+- **The logo is typeable.** 人 is U+4EBA — it renders natively in terminal output, READMEs, npm descriptions, commit messages. Terminal banner: `人 nakodo — your agent's networker`.
+
+### Palette
+
+| Name | Hex | Role |
+|---|---|---|
+| Carbon | `#141311` | Ground (dark-first — the audience lives in dark terminals) |
+| Panel | `#1E1C19` | Cards, raised surfaces |
+| Bone | `#EDE8DE` | Text, the mark, people |
+| Ash | `#8F8A80` | Quiet/secondary text |
+| Amber | `#E1A23C` | **The introduction only** |
+
+**The amber rule:** amber appears exclusively when an introduction happens — the intro-card accent, the moment an intro lands in a session. One warm phosphor glow in a dark system; scarcity is what makes it mean something. It never decorates ordinary UI, and never touches the mark.
+
+### Type
+
+- **JetBrains Mono** — the voice: wordmark (`nakodo`, lowercase, medium), headings, brand lines, terminal, spec text. Mono is the primary register, not a garnish. Italic for the quiet aside.
+- **Inter** — body, when there's a lot to read.
+
+### Voice artifacts (canonical)
+
+- **Tagline register:** `// no feed. no faces. the only output is a person.`
+- **The guarantees set like a spec** — the four trust rules written in RFC 2119 register, in mono: *"Profiles MUST NOT be displayed — only compared. Declines MUST NOT be revealed. Ever."* The audience's native idiom for a promise you can hold someone to.
+- **Design for the real surfaces first** — the anonymous intro card is the only artifact users ever see and is the hero brand surface; the terminal (`npx nakodo`) and the README/registry card come next. The identity is judged there, not on a poster.
+
+### Explored and parked
+
+Direction A in full (washi/sumi/shu palette, Newsreader/Hanken Grotesk, shrine vermilion); the vermilion-dot "crossing" mark; the hanko seal mark; the `o · o` circle-dot system and its quiet/introduced/connected state lifecycle (dropped — it retrofitted a single-apex mark that we're no longer using); the symmetric single-apex typeform (read too much like an arrow).
+
 ## Naming lineage note
 
 Nakodo is the second Japanese-sourced name in Matthew's work, after **Auno** (from *aun*, the paired breath — a coordination product). The two are unrelated products; the shared thread is the *method*, not the language: name the promise precisely at its source, then wear it lightly. Auno named **synchrony**; Nakodo names **the fateful, discreet introduction**. Where Auno is about many parts moving as one breath, Nakodo is about two strangers being quietly brought together by a third who knows them both.
@@ -80,5 +121,5 @@ Quiet, discreet, anti-performance. The brand should never sound like a social ne
 
 - **Register nakodo.dev** and reserve the npm package name.
 - **Trademark read** — Nakodo vs. "Nakoda" (India) and any nakodo.com holder, in dev-tools and social classes.
-- **Visual identity** — not yet started. The invisible go-between and the single-thread-between-two-points are the obvious wells for a mark. (Design after the name is cleared.)
+- **Visual identity** — direction set (the blackbox: pure 人 mark in bone on carbon, amber reserved for the intro; see above). Remaining: exact mark geometry (stroke weights, taper, clearspace), the intro-card design as the hero artifact, and the one-page site.
 - **The MCP server name + tool descriptions** — matter more than the brand for agent discovery; `find_collaborator(need)` stays literal regardless of brand. See [SCOPE.md](../SCOPE.md).
