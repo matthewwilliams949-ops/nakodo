@@ -76,14 +76,15 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 
 ### M0 — Name + accounts *(Matthew-only, ~90 min after the naming session)*
 - [x] Name chosen per NAME-BRIEF.md (npm/domain/registry collisions checked): **Nakodo** / npm `nakodo` / nakodo.dev
-- [ ] Domain registered: **nakodo.dev** (open flag before public launch: trademark read vs. "Nakoda", see brand guide)
-- [ ] npm account ready + package name claimed (publish a 0.0.1 placeholder to reserve it)
-- [ ] GitHub repo created on matthewwilliams949-ops (private until launch week)
-- [ ] Supabase project created (EU region — Frankfurt)
-- [ ] Vercel project created + linked to repo
-- [ ] Resend account + domain DNS (SPF/DKIM) verified
-- [ ] Secrets into Vercel env + local `.env` (Supabase URL/service key, Resend key); `vercel` and `supabase` CLIs authenticated once so agents never need credentials
-- **Done when:** an agent can run `pnpm install && vercel env pull` and reach Supabase + Resend from local dev.
+- [x] Domain registered: **nakodo.dev** (open flag before public launch: trademark read vs. "Nakoda", see brand guide)
+- [x] npm account ready + package name claimed (`nakodo@0.0.1` published as placeholder)
+- [x] GitHub repo created on matthewwilliams949-ops (private until launch week)
+- [x] Supabase project created, schema applied (`pnpm db:apply` → six tables live: asks, events, intros, profiles, snippets, users)
+- [x] Vercel project created (`nakodo-web`, root dir `apps/web`) + linked to repo; domain `nakodo.dev`/`www` verified; CLI linked locally, env pulled to `apps/web/.env.local`
+- [x] Resend account + domain DNS (SPF/DKIM) verified; `hello@nakodo.dev` forwarding to matthew.williams949@gmail.com confirmed
+- [x] Secrets into Vercel env + local `.env` (DATABASE_URL, RESEND_API_KEY, EMAIL_FROM, APP_URL); `vercel` CLI linked to `nakodo-web` project so agents never need credentials
+- **Done when:** an agent can run `pnpm install && vercel env pull` and reach Supabase + Resend from local dev. ✅ `pnpm check`, `pnpm db:apply`, `pnpm smoke:email` all pass.
+- [x] Production verified end-to-end (2026-07-06): site live on nakodo.dev; full API round-trip (register → profile → snippet → ask → record → delete → 401) green against prod; published `npx nakodo` package drives onboarding against prod over stdio; smoke-test rows cleaned up, events table zeroed. **Config fix applied:** Vercel primary domain flipped to apex `nakodo.dev` (www now 308s to apex) — the original apex→www redirect silently stripped `Authorization` headers (Node fetch drops auth on cross-origin redirects), 401-ing every authenticated API call at the package's default URL.
 
 ### M1 — Repo scaffold
 - [x] Monorepo per skeleton above; pnpm workspaces; TS strict; vitest; CI workflow (typecheck + test)
@@ -128,9 +129,9 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - **Done when:** deployed on the domain, Lighthouse-clean, renders on mobile.
 
 ### M6 — Telemetry + metrics snapshot
-- [ ] `scripts/metrics.ts`: one command prints the funnel — installs (npm downloads API + registry stats), activations (users with profile + ≥1 snippet), asks, intros proposed/accepted, reveals, exchanges (manual field) — plus attribution breakdown from `source`
+- [x] `scripts/metrics.ts` (`pnpm metrics`): prints the funnel — npm downloads, GitHub stars, activations (profile + ≥1 snippet), asks, intros proposed/accepted/revealed, exchanges (manual: insert an `exchange_confirmed` event via Studio) — plus `source` attribution and the gate numbers
 - [ ] Week-1 calibration task per SCOPE.md: pull Smithery/npm stats for comparable new servers, adjust gate numbers once, freeze (record the adjustment in SCOPE.md)
-- **Done when:** `pnpm metrics` prints the full funnel table against live data.
+- **Done when:** `pnpm metrics` prints the full funnel table against live data. ✅ (2026-07-06, all zeros — clean slate)
 
 ### M7 — Package, publish, hook
 - [ ] npm publish (real version), `npx nakodo` cold-start verified on a clean machine/user

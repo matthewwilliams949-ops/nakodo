@@ -1,6 +1,7 @@
 {
   "name": "nakodo-monorepo",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.32.1",
   "pnpm": {
     "onlyBuiltDependencies": ["esbuild", "sharp"]
@@ -12,8 +13,9 @@
     "check": "pnpm -r typecheck && pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "db:apply": "tsx scripts/db-apply.ts",
-    "smoke:email": "tsx scripts/smoke-email.ts",
+    "db:apply": "tsx --env-file=.env scripts/db-apply.ts",
+    "smoke:email": "tsx --env-file=.env scripts/smoke-email.ts",
+    "metrics": "tsx --env-file=.env scripts/metrics.ts",
     "dev": "pnpm --filter web dev"
   },
   "devDependencies": {
