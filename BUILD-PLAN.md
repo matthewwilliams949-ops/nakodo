@@ -91,7 +91,7 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - [x] CLAUDE.md written: stack, dev commands, conventions, "current milestone" pointer
 - [x] Rename pass: Nakodo everywhere (npm name/bin, `NAKODO_*` env vars, `~/.config/nakodo/`, https://nakodo.dev, emails, site, READMEs, docs)
 - [x] `db/schema.sql` written; tests run it against PGlite (in-memory Postgres) — applying to Supabase happens in M0 step 4
-- **Done when:** fresh clone → `pnpm install && pnpm test && pnpm typecheck` green in CI; `next dev` serves a stub page. ✅ (CI run itself pending the GitHub repo from M0)
+- **Done when:** fresh clone → `pnpm install && pnpm test && pnpm typecheck` green in CI; `next dev` serves a stub page. ✅ (CI green on GitHub Actions since 2026-07-06)
 
 ### M2 — API foundation ✅
 - [x] `POST /api/register` — email (+ optional handle/location + **source: "how did the agent find this server"**) → creates user, issues token (store hash only), sends welcome email via Resend (no-op sender until M0 provides the key)
