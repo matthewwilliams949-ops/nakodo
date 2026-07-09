@@ -172,4 +172,7 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - [x] Concierge `send-intro` accepts id/handle/email; users without email fully supported end to end
 - [x] Site + tool descriptions updated to the new trust language
 - **Done when:** `pnpm check` green with new coverage: no-email registration, pre-reveal contact refusal (409), contact stored per side and never emailed, pending endpoint lists only own unanswered sides, email-less intro end to end. ✅ (18 web + 10 MCP tests)
-- [ ] Prod: `pnpm db:apply` (backwards-compatible), merge + deploy, `npx nakodo` re-verify against prod, THEN draft Matthew's launch posts
+- [x] Prod: `pnpm db:apply` applied; merged + deployed (2026-07-09); full v1.1 flow verified against prod via API (email-less register → profile → pending → intro card page → accept/accept → 409 pre-reveal contact guard → contact exchange → counterpart sees it → delete → 401); verification rows + events cleaned (1 real user remains: Matthew)
+- [x] Launch posts drafted with co-founder/collaborator framing (Matthew's positioning call vs. Boardy's funding framing): documentation/launch-posts.md — r/mcp first, then r/SideProject, Show HN wk 2, PH later; public replies only, no DMs
+- [ ] **npm publish 0.1.0 — needs Matthew (2FA):** `cd packages/mcp-server && npm login && npm publish` (version bumped, README rewritten, build green, bin verified). Until published, `npx -y nakodo` serves the 0.0.1 placeholder — publish BEFORE the first post goes up
+- [ ] After publish: `npx -y nakodo@latest` smoke against prod, then Matthew posts #1 (r/mcp) — seed clock starts that day
