@@ -1,6 +1,6 @@
 {
   "name": "nakodo",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Nakodo makes your coding agent your networker: find a collaborator, co-founder, or someone to help with design, code, marketing, or distribution — matched privately on what you're actually building. No feed, no faces; the only output is an introduction.",
   "type": "module",
   "license": "MIT",
