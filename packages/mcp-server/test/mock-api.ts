@@ -4,12 +4,13 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
 export interface MockState {
-  registered: { email: string; source?: string; install_id?: string } | null
+  registered: { email: string | null; source?: string; install_id?: string } | null
   profile: string | null
   snippets: string[]
   asks: string[]
   events: { type: string; install_id?: string }[]
   deleted: boolean
+  pendingIntros: { url: string; created_at: string }[]
 }
 
 export interface MockApi {
@@ -28,6 +29,7 @@ export async function startMockApi(): Promise<MockApi> {
     asks: [],
     events: [],
     deleted: false,
+    pendingIntros: [],
   }
 
   const server: Server = createServer((req, res) => {
@@ -45,10 +47,10 @@ export async function startMockApi(): Promise<MockApi> {
 
       switch (route) {
         case 'POST /api/register':
-          if (state.registered?.email === body.email) {
+          if (body.email && state.registered?.email === body.email) {
             return json(409, { error: 'already_registered', hint: 'Reply to any of our emails to recover access.' })
           }
-          state.registered = { email: body.email, source: body.source, install_id: body.install_id }
+          state.registered = { email: body.email ?? null, source: body.source, install_id: body.install_id }
           return json(201, { token: TEST_TOKEN, user_id: 'u1' })
         case 'POST /api/events':
           state.events.push({ type: body.type, install_id: body.install_id })
@@ -73,6 +75,9 @@ export async function startMockApi(): Promise<MockApi> {
             snippets: state.snippets.map((s) => ({ body: s, created_at: '2026-07-05T00:00:00Z' })),
             asks: state.asks.map((need) => ({ need, status: 'open', created_at: '2026-07-05T00:00:00Z' })),
           })
+        case 'GET /api/intros/pending':
+          if (!authed) return json(401, { error: 'unauthorized' })
+          return json(200, { intros: state.pendingIntros })
         case 'DELETE /api/me':
           if (!authed) return json(401, { error: 'unauthorized' })
           state.deleted = true

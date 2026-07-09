@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "auno": {
+      "command": "node",
+      "args": [
+        "/Users/matthewwilliams/Personal/agent-work-review/app/dist/cli/main.js",
+        "mcp"
+      ]
+    }
+  }
+}

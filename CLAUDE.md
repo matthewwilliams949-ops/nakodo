@@ -31,3 +31,6 @@ Read [SCOPE.md](SCOPE.md) (why this exists, the funnel, the gate) and [BUILD-PLA
 ## Name
 
 Decided 2026-07-05: **Nakodo** (rename pass done). Env vars are `NAKODO_*` (`NAKODO_CONFIG_DIR`, `NAKODO_API_URL`), config dir `~/.config/nakodo/`, prod API/site `https://nakodo.dev`. Naming rationale and also-rans: SCOPE.md "Name".
+
+## auno (dogfood — active since 2026-07-07)
+The auno MCP server is registered in this project (.mcp.json). Agents doing real work here should call its tools: `session_start` at the start (returns a briefing of what other agents/sessions did), `log_work` as you go, `goal` to declare/progress the goal your work serves, `escalate` to "human" when blocked, `session_end` with summary + lessons.

@@ -6,7 +6,8 @@ import { sendEmail } from '../../../lib/email'
 import { welcome } from '../../../emails/templates'
 
 const Body = z.object({
-  email: z.string().email(),
+  // v1.1: optional. Notification channel only — never shared, never required.
+  email: z.string().email().optional(),
   handle: z.string().min(1).max(80).optional(),
   location: z.string().min(1).max(120).optional(),
   // Attribution: how the agent found this server — the Motion 3 instrument.
@@ -20,23 +21,27 @@ export async function POST(req: Request): Promise<Response> {
   const { email, handle, location, source, install_id } = parsed.data
 
   const db = getDb()
-  const existing = await db.query('select id from users where email = $1', [email])
-  if (existing.rows.length > 0) {
-    return Response.json(
-      { error: 'already_registered', hint: 'This email already has a record. Reply to any of our emails to recover access.' },
-      { status: 409 },
-    )
+  if (email) {
+    const existing = await db.query('select id from users where email = $1', [email])
+    if (existing.rows.length > 0) {
+      return Response.json(
+        { error: 'already_registered', hint: 'This email already has a record. Reply to any of our emails to recover access.' },
+        { status: 409 },
+      )
+    }
   }
 
   const token = generateToken()
   const { rows } = await db.query<{ id: string }>(
     'insert into users (email, handle, location, token_hash, source) values ($1, $2, $3, $4, $5) returning id',
-    [email, handle ?? null, location ?? null, hashToken(token), source ?? null],
+    [email ?? null, handle ?? null, location ?? null, hashToken(token), source ?? null],
   )
   const userId = rows[0]!.id
-  await logEvent({ type: 'registered', userId, installId: install_id, metadata: { source: source ?? null } })
+  await logEvent({ type: 'registered', userId, installId: install_id, metadata: { source: source ?? null, has_email: Boolean(email) } })
   // Welcome email is best-effort; registration must not fail on email trouble.
-  await sendEmail({ to: email, ...welcome() }).catch((err) => console.error('welcome email failed:', err))
+  if (email) {
+    await sendEmail({ to: email, ...welcome() }).catch((err) => console.error('welcome email failed:', err))
+  }
 
   return Response.json({ token, user_id: userId }, { status: 201 })
 }

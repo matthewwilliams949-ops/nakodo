@@ -8,10 +8,14 @@ export class ApiError extends Error {
 }
 
 export interface RecordResponse {
-  user: { email: string; handle: string | null; location: string | null }
+  user: { email: string | null; handle: string | null; location: string | null }
   profile: { body: string; approved_at: string } | null
   snippets: { body: string; created_at: string }[]
   asks: { need: string; status: string; created_at: string }[]
+}
+
+export interface PendingIntrosResponse {
+  intros: { url: string; created_at: string }[]
 }
 
 export class ApiClient {
@@ -37,7 +41,7 @@ export class ApiClient {
   }
 
   register(input: {
-    email: string
+    email?: string
     handle?: string
     location?: string
     source?: string
@@ -64,6 +68,10 @@ export class ApiClient {
 
   deleteMe(): Promise<{ ok: true; deleted: true }> {
     return this.request('DELETE', '/api/me')
+  }
+
+  pendingIntros(): Promise<PendingIntrosResponse> {
+    return this.request('GET', '/api/intros/pending')
   }
 
   // Telemetry must never break the user experience — swallow all failures.

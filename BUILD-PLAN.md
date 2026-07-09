@@ -110,7 +110,7 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - [x] Tool descriptions written for agent-search (Motion 3), real phrasings, no keyword-stuffing; protocol test asserts the phrasings stay present
 - [x] Local config: `~/.config/nakodo/config.json` with install_id / email / token (env-overridable for tests)
 - [x] **Protocol-level integration tests**: server spawned over stdio via the MCP SDK client against a mock API (9 tests: onboarding, registration, ask, snippet, record, delete)
-- [ ] Manual: MCP Inspector connect + onboarding check (fold into Checkpoint A demo)
+- [x] Manual: real Claude Code session (`.claude-personal` identity), `find_collaborator` → onboarding → done (2026-07-06, Checkpoint A)
 - **Done when:** protocol tests green ✅, AND MCP Inspector connects and `find_collaborator` with no profile returns the onboarding prompt.
 
 ### M4 — Intro flow (the trust guarantees, made mechanical) ✅ (Resend round-trip pending M0)
@@ -125,7 +125,7 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 ### M5 — One-page site (copy done; deploy pending M0)
 - [x] Page structure + first-pass copy: one-liner, **five** trust guarantees (incl. delete_me), install command, privacy note. Nothing else
 - [x] Rename pass: real name, real npm command, agent-config snippet, contact email (hello@nakodo.dev)
-- [ ] Deploy on the domain (M0 step 5), check mobile
+- [x] Deployed on nakodo.dev (M0); mobile check still open
 - **Done when:** deployed on the domain, Lighthouse-clean, renders on mobile.
 
 ### M6 — Telemetry + metrics snapshot
@@ -163,3 +163,13 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - Every user-facing surface (tool descriptions, emails, site) must be consistent with the five trust guarantees; when in doubt, the guarantee wins over the feature.
 - Nothing ships without an `events` row — if it isn't logged, it didn't happen, and this project exists to measure a funnel.
 - Anything not needed to move one of the four funnel metrics is out of scope (SCOPE.md rule). Flag scope creep instead of building it.
+
+### M7 — v1.1 trust redesign ✅ (2026-07-09, pre-recruitment blocker — see documentation/trust-redesign-brief.md)
+- [x] Email optional everywhere: schema (`users.email` nullable + idempotent migration), register API, MCP `create_profile`, onboarding copy reframed (email = notification channel only, never shared, skippable)
+- [x] In-session intro channel: `GET /api/intros/pending` (Bearer) + MCP `pendingNotice()` appended to `find_collaborator` / `capture_snippet` / `my_record` responses
+- [x] Contact exchange moved in-app: `a_contact`/`b_contact` on intros, share form on the revealed intro page, `setContact()` gated to revealed state — the platform never transmits contact details on anyone's behalf
+- [x] Reveal emails → identity-free notices (link back to own intro page only); `reveal()` template replaced by `revealNotice()`
+- [x] Concierge `send-intro` accepts id/handle/email; users without email fully supported end to end
+- [x] Site + tool descriptions updated to the new trust language
+- **Done when:** `pnpm check` green with new coverage: no-email registration, pre-reveal contact refusal (409), contact stored per side and never emailed, pending endpoint lists only own unanswered sides, email-less intro end to end. ✅ (18 web + 10 MCP tests)
+- [ ] Prod: `pnpm db:apply` (backwards-compatible), merge + deploy, `npx nakodo` re-verify against prod, THEN draft Matthew's launch posts

@@ -1,6 +1,7 @@
-// Concierge tool: create an intro and email both anonymous cards.
+// Concierge tool: create an intro; users with an email on record get their
+// anonymous card emailed, everyone gets it surfaced in-session by their agent.
 // Usage: pnpm intro:send path/to/intro.json
-//   { "userAEmail": "...", "userBEmail": "...",
+//   { "userA": "<id, handle, or email>", "userB": "<id, handle, or email>",
 //     "cardA": "card shown TO A describing B", "cardB": "card shown TO B describing A" }
 import { readFileSync } from 'node:fs'
 import { createIntro } from '../lib/intros'
@@ -12,7 +13,7 @@ if (!path) {
 }
 
 const input = JSON.parse(readFileSync(path, 'utf8'))
-for (const key of ['userAEmail', 'userBEmail', 'cardA', 'cardB']) {
+for (const key of ['userA', 'userB', 'cardA', 'cardB']) {
   if (typeof input[key] !== 'string' || input[key].length === 0) {
     console.error(`Missing or empty field: ${key}`)
     process.exit(1)
@@ -20,5 +21,5 @@ for (const key of ['userAEmail', 'userBEmail', 'cardA', 'cardB']) {
 }
 
 const { id } = await createIntro(input)
-console.log(`Intro ${id} created; both card emails sent.`)
+console.log(`Intro ${id} created; card emails sent where an address exists — agents surface the rest in-session.`)
 process.exit(0)

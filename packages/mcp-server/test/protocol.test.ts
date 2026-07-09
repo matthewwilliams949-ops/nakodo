@@ -111,6 +111,16 @@ describe('nakodo over stdio', () => {
     expect(out).toContain('Shipped the intro email flow')
   })
 
+  it('a waiting intro is announced in-session (v1.1 channel)', async () => {
+    api.state.pendingIntros = [{ url: 'http://x/intro/tok-pending-1', created_at: '2026-07-09T00:00:00Z' }]
+    const out = await callText('my_record')
+    expect(out).toContain('introduction is waiting')
+    expect(out).toContain('http://x/intro/tok-pending-1')
+    api.state.pendingIntros = []
+    const quiet = await callText('my_record')
+    expect(quiet).not.toContain('introduction is waiting')
+  })
+
   it('delete_me without confirmation does not delete', async () => {
     const out = await callText('delete_me', { confirm: false })
     expect(out).toContain('Not deleted')

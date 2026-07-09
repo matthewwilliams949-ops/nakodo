@@ -7,7 +7,9 @@
 
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
-  email text not null unique,
+  -- v1.1: optional. Notification channel only — never shared, never shown to a
+  -- match, not required to participate. Contact exchange happens in-app.
+  email text unique,
   handle text,
   location text,
   token_hash text not null unique,
@@ -55,6 +57,11 @@ create table if not exists intros (
   token_a text not null unique,
   token_b text not null unique,
   token_expires_at timestamptz not null,
+  -- v1.1: after reveal, each side may leave contact details for the other.
+  -- The platform never transmits contact info on anyone's behalf — these are
+  -- only ever displayed on the counterpart's own intro page.
+  a_contact text,
+  b_contact text,
   created_at timestamptz not null default now(),
   resolved_at timestamptz
 );
@@ -71,3 +78,9 @@ create table if not exists events (
 create index if not exists events_type_idx on events (type, created_at);
 create index if not exists snippets_user_idx on snippets (user_id, created_at);
 create index if not exists asks_user_idx on asks (user_id, status);
+
+-- v1.1 trust redesign (2026-07-09) — idempotent migrations for existing databases.
+-- Email becomes optional (notification-only); contact exchange moves in-app.
+alter table users alter column email drop not null;
+alter table intros add column if not exists a_contact text;
+alter table intros add column if not exists b_contact text;

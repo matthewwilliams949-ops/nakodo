@@ -34,6 +34,23 @@ function handleApiError(err: unknown) {
 const NOT_REGISTERED =
   'The user has no profile yet. Call find_collaborator with their need to get the onboarding steps.'
 
+// v1.1: the in-session intro channel. Best-effort — a failed check must never
+// break the tool call it rides on.
+async function pendingNotice(): Promise<string> {
+  try {
+    const { intros } = await client().pendingIntros()
+    if (intros.length === 0) return ''
+    return [
+      ``,
+      ``,
+      `🔔 ${intros.length === 1 ? 'An introduction is waiting' : `${intros.length} introductions are waiting`} for the user. Tell them — an anonymous card describing someone worth meeting is ready to accept or decline (the other person learns nothing unless both say yes):`,
+      ...intros.map((i) => `  ${i.url}`),
+    ].join('\n')
+  } catch {
+    return ''
+  }
+}
+
 export function registerTools(server: McpServer): void {
   server.registerTool(
     'find_collaborator',
@@ -45,7 +62,8 @@ export function registerTools(server: McpServer): void {
         'find a collaborator, co-founder, or teammate for their project; ' +
         'get feedback from someone building something similar; or meet other builders working on related problems. ' +
         'This registers their need with a private matching network — nothing is published, there is no feed or public profile, ' +
-        'and introductions arrive by email only when both sides accept. If the user has no profile yet, this returns onboarding steps.',
+        'and an introduction is an anonymous card both sides must accept; contact details are exchanged only by the two people themselves afterwards. ' +
+        'If the user has no profile yet, this returns onboarding steps.',
       inputSchema: {
         need: z
           .string()
@@ -64,12 +82,12 @@ export function registerTools(server: McpServer): void {
             ``,
             `1. Draft a short profile (5-10 lines) from what you already know of this project and session: what they're building, strengths you have actually seen evidence of, gaps they could use help with, and optionally where they're based. Concrete facts over claims.`,
             `2. Show the user the draft and revise until they explicitly approve it. Nothing is ever stored without their approval.`,
-            `3. Ask for their email — frame it as "where your person shows up": the only thing that ever arrives there is an introduction. Optionally a handle/name and location (enables near-you matching).`,
-            `4. Ask exactly this and record the answer: "How did you find this tool?" (examples: you the agent found it via a tool/registry search, a launch post, a friend). Pass it as \`source\`.`,
+            `3. Ask exactly this and record the answer: "How did you find this tool?" (examples: you the agent found it via a tool/registry search, a launch post, a friend). Pass it as \`source\`.`,
+            `4. Optionally: a handle/name and location (enables near-you matching), and — only if they want one — an email address. Be honest about what the email is: purely a heads-up channel to tell them an introduction is waiting. It is never shared with anyone, never shown to a match, and they can skip it entirely — you (the agent) will tell them about waiting introductions in-session instead.`,
             `5. Call create_profile with all of the above.`,
             `6. Then call find_collaborator again with the same need: ${JSON.stringify(need)}`,
             ``,
-            `Worth telling the user: profiles and updates are never shown to anyone — only compared. No feed, no faces. Declining an intro is invisible to the other side. delete_me removes everything, any time.`,
+            `Worth telling the user: profiles and updates are never shown to anyone — only compared. No feed, no faces. Declining an intro is invisible to the other side. Contact details are exchanged only by the two people themselves, after both accept — never by the platform. delete_me removes everything, any time.`,
           ].join('\n'),
         )
       }
@@ -77,8 +95,9 @@ export function registerTools(server: McpServer): void {
         await client().addAsk(need)
         return text(
           `Registered as a standing ask: ${JSON.stringify(need)}. The matcher now compares it privately against what other builders are working on. ` +
-            `When there's a real match, an introduction arrives by email as an anonymous card — no names until both sides accept. ` +
-            `Silence in the meantime is normal; nothing about this is visible to anyone. The ask stays open until matched.`,
+            `When there's a real match, an introduction appears as an anonymous card — no names, and nothing happens unless both sides accept. This tool will tell you here when one is waiting. ` +
+            `Silence in the meantime is normal; nothing about this is visible to anyone. The ask stays open until matched.` +
+            (await pendingNotice()),
         )
       } catch (err) {
         return handleApiError(err)
@@ -91,11 +110,17 @@ export function registerTools(server: McpServer): void {
     {
       title: 'Create profile',
       description:
-        'Register the user with the matching network: their agent-drafted, human-approved profile plus their email. ' +
-        'ONLY call this after the user has explicitly approved the exact profile text and provided their email — ' +
+        'Register the user with the matching network: their agent-drafted, human-approved profile. ' +
+        'ONLY call this after the user has explicitly approved the exact profile text — ' +
         'never with unapproved or inferred content. Usually called during the onboarding flow started by find_collaborator.',
       inputSchema: {
-        email: z.string().email().describe('Where introductions arrive. Provided by the user.'),
+        email: z
+          .string()
+          .email()
+          .optional()
+          .describe(
+            'Optional. Used only to notify the user that an introduction is waiting — never shared with anyone, never shown to a match. Only include if the user offered it.',
+          ),
         profile: z.string().min(1).max(10_000).describe('The profile text, exactly as approved by the user.'),
         source: z
           .string()
@@ -114,17 +139,20 @@ export function registerTools(server: McpServer): void {
       try {
         const api = new ApiClient(apiUrl())
         const { token } = await api.register({ email, handle, location, source, install_id: cfg.install_id })
-        saveConfig({ ...cfg, email, token })
+        saveConfig({ ...cfg, ...(email ? { email } : {}), token })
         await new ApiClient(apiUrl(), token).saveProfile(profile)
         return text(
-          `Profile is on record and ${email} is set as where introductions arrive (a welcome email is on its way). ` +
+          `Profile is on record. ` +
+            (email
+              ? `${email} is set as the notification channel — the only thing that ever arrives there is a heads-up that an introduction is waiting (a welcome email is on its way). `
+              : `No email on record — introductions will be announced right here in-session instead. `) +
             `Reassure the user: the profile is never displayed to anyone — only compared, privately, to find their person. ` +
             `If there was a pending need, call find_collaborator with it now.`,
         )
       } catch (err) {
         if (err instanceof ApiError && err.status === 409) {
           return errorText(
-            `That email already has a record (likely from another machine). ${err.body?.hint ?? ''} Tell the user.`,
+            `That email already has a record (likely from another machine). ${err.body?.hint ?? ''} Tell the user — or onboard without an email; it's optional.`,
           )
         }
         return handleApiError(err)
@@ -150,7 +178,10 @@ export function registerTools(server: McpServer): void {
       if (!cfg.token) return text(NOT_REGISTERED)
       try {
         await client().addSnippet(snippet)
-        return text('On record. Never displayed, only compared — it just made their next match a little sharper.')
+        return text(
+          'On record. Never displayed, only compared — it just made their next match a little sharper.' +
+            (await pendingNotice()),
+        )
       } catch (err) {
         return handleApiError(err)
       }
@@ -174,7 +205,7 @@ export function registerTools(server: McpServer): void {
           [
             `Everything on record (visible only to this user, never to others):`,
             ``,
-            `Email: ${record.user.email}${record.user.handle ? ` · Handle: ${record.user.handle}` : ''}${record.user.location ? ` · Location: ${record.user.location}` : ''}`,
+            `Email: ${record.user.email ?? '(none — introductions are announced here in-session)'}${record.user.handle ? ` · Handle: ${record.user.handle}` : ''}${record.user.location ? ` · Location: ${record.user.location}` : ''}`,
             ``,
             `Profile:`,
             record.profile ? record.profile.body : '(none yet)',
@@ -184,7 +215,7 @@ export function registerTools(server: McpServer): void {
             ``,
             `Snippets (${record.snippets.length}, newest first):`,
             ...record.snippets.map((s) => `- [${String(s.created_at).slice(0, 10)}] ${s.body}`),
-          ].join('\n'),
+          ].join('\n') + (await pendingNotice()),
         )
       } catch (err) {
         return handleApiError(err)

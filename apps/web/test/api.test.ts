@@ -16,6 +16,7 @@ import { GET as getRecord } from '../app/api/record/route'
 import { DELETE as deleteMe } from '../app/api/me/route'
 import { POST as postEvent } from '../app/api/events/route'
 import { POST as respondIntro } from '../app/api/intro/[token]/route'
+import { GET as getPendingIntros } from '../app/api/intros/pending/route'
 
 let pg: PGlite
 let sentEmails: Email[] = []
@@ -51,8 +52,8 @@ function jsonReq(url: string, method: string, body?: unknown, token?: string): R
   })
 }
 
-async function registerUser(email: string, extra: Record<string, unknown> = {}): Promise<string> {
-  const res = await register(jsonReq('/api/register', 'POST', { email, ...extra }))
+async function registerUser(email?: string, extra: Record<string, unknown> = {}): Promise<string> {
+  const res = await register(jsonReq('/api/register', 'POST', { ...(email ? { email } : {}), ...extra }))
   expect(res.status).toBe(201)
   const { token } = (await res.json()) as { token: string }
   return token
@@ -78,6 +79,15 @@ describe('registration', () => {
     await registerUser('a@example.com')
     const res = await register(jsonReq('/api/register', 'POST', { email: 'a@example.com' }))
     expect(res.status).toBe(409)
+  })
+
+  it('registers without an email — email is optional (v1.1)', async () => {
+    const token = await registerUser(undefined, { handle: 'ghost' })
+    expect(token).toHaveLength(64)
+    expect(sentEmails).toHaveLength(0) // no address, no welcome email
+    const users = await pg.query<{ email: string | null; handle: string }>('select email, handle from users')
+    expect(users.rows[0]!.email).toBeNull()
+    expect(users.rows[0]!.handle).toBe('ghost')
   })
 
   it('rejects invalid body', async () => {
@@ -157,18 +167,18 @@ describe('delete_me', () => {
 })
 
 describe('intro flow', () => {
-  async function setupIntro(): Promise<{ tokenA: string; tokenB: string; id: string }> {
-    await registerUser('a@example.com', { handle: 'alice' })
-    await registerUser('b@example.com', { handle: 'bob' })
+  async function setupIntro(): Promise<{ tokenA: string; tokenB: string; id: string; bearerA: string; bearerB: string }> {
+    const bearerA = await registerUser('a@example.com', { handle: 'alice' })
+    const bearerB = await registerUser('b@example.com', { handle: 'bob' })
     sentEmails = []
     const { id } = await createIntro({
-      userAEmail: 'a@example.com',
-      userBEmail: 'b@example.com',
+      userA: 'alice', // exercise handle lookup
+      userB: 'b@example.com', // exercise email lookup
       cardA: 'someone in Berlin, strong at design',
       cardB: 'someone three weeks into an agent-memory tool',
     })
     const row = (await pg.query<{ token_a: string; token_b: string }>('select token_a, token_b from intros')).rows[0]!
-    return { tokenA: row.token_a, tokenB: row.token_b, id }
+    return { tokenA: row.token_a, tokenB: row.token_b, id, bearerA, bearerB }
   }
 
   function respond(token: string, response: 'accepted' | 'declined') {
@@ -185,7 +195,7 @@ describe('intro flow', () => {
     expect(sentEmails[0]!.text).toContain('someone in Berlin, strong at design')
   })
 
-  it('both accept → revealed, both reveal emails sent with names', async () => {
+  it('both accept → revealed; reveal notices carry no identity and no contact details', async () => {
     const { tokenA, tokenB } = await setupIntro()
     sentEmails = []
 
@@ -195,11 +205,87 @@ describe('intro flow', () => {
     expect(((await (await respond(tokenB, 'accepted')).json()) as { view: string }).view).toBe('revealed')
     expect(sentEmails).toHaveLength(2)
     const toA = sentEmails.find((e) => e.to === 'a@example.com')!
-    expect(toA.text).toContain('bob')
-    expect(toA.text).toContain('b@example.com')
+    // v1.1: the platform never transmits identity or contact details —
+    // the notice only points back to the recipient's own intro page.
+    expect(toA.text).toContain(tokenA)
+    expect(toA.text).not.toContain('bob')
+    expect(toA.text).not.toContain('b@example.com')
 
     const intro = (await pg.query<{ status: string }>('select status from intros')).rows[0]!
     expect(intro.status).toBe('revealed')
+  })
+
+  it('contact exchange: only after reveal, stored per side, never emailed', async () => {
+    const { tokenA, tokenB } = await setupIntro()
+
+    // Before reveal: contact share is refused
+    const early = await respondIntro(jsonReq(`/api/intro/${tokenA}`, 'POST', { contact: 'a@x.dev' }), {
+      params: Promise.resolve({ token: tokenA }),
+    })
+    expect(early.status).toBe(409)
+
+    await respond(tokenA, 'accepted')
+    await respond(tokenB, 'accepted')
+    sentEmails = []
+
+    const shareA = await respondIntro(jsonReq(`/api/intro/${tokenA}`, 'POST', { contact: 'a@x.dev or @alice' }), {
+      params: Promise.resolve({ token: tokenA }),
+    })
+    expect(shareA.status).toBe(200)
+    const shareB = await respondIntro(jsonReq(`/api/intro/${tokenB}`, 'POST', { contact: '@bob on X' }), {
+      params: Promise.resolve({ token: tokenB }),
+    })
+    expect(shareB.status).toBe(200)
+
+    const row = (await pg.query<{ a_contact: string; b_contact: string }>('select a_contact, b_contact from intros')).rows[0]!
+    expect(row.a_contact).toBe('a@x.dev or @alice')
+    expect(row.b_contact).toBe('@bob on X')
+    expect(sentEmails).toHaveLength(0) // the platform never emails contact details
+  })
+
+  it('pending intros endpoint lists only own unanswered sides', async () => {
+    const { tokenA, bearerA, bearerB } = await setupIntro()
+
+    const forA = (await (await getPendingIntros(jsonReq('/api/intros/pending', 'GET', undefined, bearerA))).json()) as {
+      intros: { url: string }[]
+    }
+    expect(forA.intros).toHaveLength(1)
+    expect(forA.intros[0]!.url).toContain(tokenA)
+
+    await respond(tokenA, 'accepted')
+    const forAAfter = (await (await getPendingIntros(jsonReq('/api/intros/pending', 'GET', undefined, bearerA))).json()) as {
+      intros: { url: string }[]
+    }
+    expect(forAAfter.intros).toHaveLength(0)
+
+    // B has not responded: still pending for B
+    const forB = (await (await getPendingIntros(jsonReq('/api/intros/pending', 'GET', undefined, bearerB))).json()) as {
+      intros: { url: string }[]
+    }
+    expect(forB.intros).toHaveLength(1)
+
+    // and unauthenticated → 401
+    expect((await getPendingIntros(jsonReq('/api/intros/pending', 'GET'))).status).toBe(401)
+  })
+
+  it('users without email get no card email but the intro still works end to end', async () => {
+    const bearerA = await registerUser(undefined, { handle: 'ghost-a' })
+    await registerUser(undefined, { handle: 'ghost-b' })
+    sentEmails = []
+    await createIntro({ userA: 'ghost-a', userB: 'ghost-b', cardA: 'card a', cardB: 'card b' })
+    expect(sentEmails).toHaveLength(0)
+
+    const forA = (await (await getPendingIntros(jsonReq('/api/intros/pending', 'GET', undefined, bearerA))).json()) as {
+      intros: { url: string }[]
+    }
+    expect(forA.intros).toHaveLength(1)
+    const tokA = forA.intros[0]!.url.split('/intro/')[1]!
+    const row = (await pg.query<{ token_a: string; token_b: string }>('select token_a, token_b from intros')).rows[0]!
+    expect(tokA).toBe(row.token_a)
+
+    await respond(row.token_a, 'accepted')
+    expect(((await (await respond(row.token_b, 'accepted')).json()) as { view: string }).view).toBe('revealed')
+    expect(sentEmails).toHaveLength(0) // reveal notices skipped — no addresses anywhere
   })
 
   it('decline is silent: no email, and the other side still sees a pending card', async () => {

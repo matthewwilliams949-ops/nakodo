@@ -21,8 +21,9 @@ export default function Home() {
         Install the MCP server. Your agent quietly keeps a record of what you&apos;re building —
         every snippet approved by you first. When you need someone (design, code, marketing, a
         co-founder), ask your agent. We compare records privately and, when there&apos;s a real
-        match, you get one email: an anonymous card describing a person worth meeting. You both say
-        yes, or nothing happens.
+        match, your agent knocks: an anonymous card describing a person worth meeting, on a private
+        page. You both say yes, or nothing happens — and even after a yes, contact details are
+        exchanged only by the two of you. We never pass them along.
       </p>
 
       <h2>Five guarantees</h2>
@@ -46,8 +47,9 @@ export default function Home() {
       </p>
 
       <p className="muted">
-        Data lives in the EU (Frankfurt). We store only what you approve: your email, your profile,
-        your snippets. Delete any time via the tool or by emailing{' '}
+        Data lives in the EU (Frankfurt). We store only what you approve: your profile, your
+        snippets, and — only if you choose to leave one — an email used solely to tell you an
+        introduction is waiting. Delete any time via the tool or by emailing{' '}
         <a href="mailto:hello@nakodo.dev">hello@nakodo.dev</a>.
       </p>
     </main>
