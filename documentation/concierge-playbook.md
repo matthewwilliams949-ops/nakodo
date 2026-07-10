@@ -18,6 +18,8 @@ Each anonymous card = **relevant facts + the visible "why"**. The why is the tru
 
 Wanted-framing wherever true (being wanted retains better than being offered): lead with *"someone building X could use exactly what you have"* when the match originates from the other side's ask.
 
+**Every card ends with a suggested first step** — concrete and bounded, derived from the why: *"a 30-minute call this week"*, *"trade a look at each other's onboarding flows and one piece of honest feedback"*. The why is the agenda; the first step makes it walkable. (Answer to "what do people actually do with a match" — light-touch assist, then get out of the way; never scheduling software.)
+
 ## The weekly pass
 
 1. Read new profiles/snippets/asks in the admin table.
