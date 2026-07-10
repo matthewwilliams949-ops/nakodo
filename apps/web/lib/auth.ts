@@ -3,8 +3,9 @@ import { hashToken } from './tokens'
 
 export interface AuthedUser {
   id: string
-  email: string
+  email: string | null
   handle: string | null
+  display_name: string | null
   location: string | null
 }
 
@@ -16,7 +17,7 @@ export async function authenticate(req: Request): Promise<AuthedUser | null> {
   const token = header.slice('Bearer '.length).trim()
   if (!token) return null
   const { rows } = await getDb().query<AuthedUser>(
-    'select id, email, handle, location from users where token_hash = $1',
+    'select id, email, handle, display_name, location from users where token_hash = $1',
     [hashToken(token)],
   )
   return rows[0] ?? null

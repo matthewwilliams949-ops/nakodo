@@ -22,6 +22,9 @@ create table if not exists users (
 
 create table if not exists profiles (
   user_id uuid primary key references users(id) on delete cascade,
+  -- M8: the pool identifier. Opaque and stable, NEVER the user id — pool
+  -- responses carry card_id only, so nothing in the pool joins to identity.
+  card_id uuid not null unique default gen_random_uuid(),
   body text not null, -- agent-synthesized, human-approved
   approved_at timestamptz not null default now()
 );
@@ -108,6 +111,7 @@ alter table users alter column email drop not null;
 -- M8 agent-driven matching (2026-07-10) — idempotent migrations for existing
 -- databases. New columns, the 'held' pre-review status, and the intro thread.
 alter table users add column if not exists display_name text;
+alter table profiles add column if not exists card_id uuid not null unique default gen_random_uuid();
 alter table intros add column if not exists proposed_by uuid references users(id) on delete set null;
 alter table intros add column if not exists ask_id uuid references asks(id) on delete set null;
 alter table intros drop constraint if exists intros_status_check;

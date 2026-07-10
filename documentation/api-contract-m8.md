@@ -94,12 +94,13 @@ Nothing else. No target metadata, no review ETA, no queue position — any of th
 |---|---|---|
 | 400 | `invalid_body` | Shape/length violations |
 | 401 | `unauthorized` | Missing/invalid token |
-| 404 | `card_not_found` | Unknown `card_id` (or a card that has left the pool) |
+| 403 | `no_profile` | Caller has no approved profile — it IS the card the target would see |
+| 404 | `card_not_found` | Unknown `card_id`, a card that has left the pool, or the caller's own card (your card is not in *your* pool) |
 | 404 | `ask_not_found` | `ask_id` doesn't exist, isn't the caller's, or isn't open — one error for all three, so ask ids can't be probed |
 | 409 | `proposal_cap` | Caller already has 2 open outbound proposals (`held` or `proposed`). Body includes `open_outbound: 2`. Resolves when one reveals, declines, or expires |
 | 409 | `already_proposed` | The **caller** already has an open intro to this card. Discloses only the caller's own prior action |
 | 409 | `target_busy` | The target can't receive proposals right now. Deliberately covers BOTH over-proposal dampening AND a reverse-direction collision (the target already has an open/held proposal toward the caller) — one opaque error, so a proposer can never learn they are being considered. Carries no count, no reason |
-| 422 | `pii_detected` | PII lint flagged `why_for_them`/`why_for_me`. Body includes `flags: ["email", "url", …]` so the agent can redraft |
+| 422 | `pii_detected` | PII lint flagged `why_for_them`/`why_for_me` (identity patterns AND instruction-shaped text). Body includes `flags: ["email", …]` **and `findings: [{flag, excerpt}]`** — both contractual (AIE review, 2026-07-10) so agents can surface exactly what to redraft |
 | 429 | `rate_limited` | Burst guard, same shape as pool |
 
 **Silence rules, restated for this endpoint:** a proposal that is vetoed in review stays exactly as invisible as one that was declined — the proposer sees `held` forever (or an eventual quiet expiry); the target never learns it existed. `open_outbound` counts only the caller's own proposals and is the only cap-related number ever exposed.
@@ -113,3 +114,11 @@ Events: `intro_proposal_held` on creation; the existing `intro_proposed` fires o
 - The repo's mock-API pattern (`packages/mcp-server/test/mock-api.ts`) — add `GET /api/pool` and `POST /api/intros/propose` handlers returning the shapes above.
 - Useful mock states: pool with 3 cards / empty pool / `no_open_ask` / `proposal_cap` / `pii_detected` with `flags`.
 - `card_id` in mocks: any stable UUIDs. Don't reuse user ids, even in fixtures — the habit is the point.
+
+---
+
+## Post-review addenda (2026-07-10, after AIE sign-off — additive only)
+
+- **`POST /api/asks` is idempotent** per (user, open, exact need text): a repeat returns `200 { ok, id, existing: true }` with the existing row's id instead of creating a duplicate. A different need, or the same need after the ask closed, creates a new row (201).
+- **`GET /api/record`** now includes `user.display_name` and `id` on each ask (own data only — rule 2 intact), so `my_record` can show the reveal name and `propose_intro` can reference an existing ask.
+- **Pool response cap: none, deliberately.** Whole-pool-in-context IS the v1 matching mechanism (spec §"v1 mechanics"); a cap would reintroduce server-side ranking by the back door. Guarantee 3 is held at the human surface (the agent shows the closest few, never dumps the pool — AIE guidance) while scrape resistance comes from auth + open-ask precondition + rate limits + access logging, and a scraped pool is anonymous by construction. Revisit only when N makes whole-pool impractical (already a planned contract change).
