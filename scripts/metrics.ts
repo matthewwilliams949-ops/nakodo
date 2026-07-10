@@ -52,11 +52,19 @@ const activated = await one(`
     and exists (select 1 from snippets s where s.user_id = u.id)`)
 const snippets = await one('select count(*) n from snippets')
 const openAsks = await one("select count(*) n from asks where status = 'open'")
-const introsProposed = await one('select count(*) n from intros')
+// "Proposed" = delivered to a target. Agent proposals sit in 'held' until
+// Matthew approves and are 'vetoed' if he says no — neither ever reached a
+// target, so neither counts as a proposal. (held/vetoed exist post-M8-merge;
+// the NOT IN is a no-op on the pre-merge schema.)
+const introsProposed = await one("select count(*) n from intros where status not in ('held', 'vetoed')")
+// held awaiting Matthew's weekly review — operational, not a funnel stage.
+const introsHeld = await one("select count(*) n from intros where status = 'held'")
+// "Accepted" = the TARGET said yes → the intro reveals. We deliberately do NOT
+// count a_response/b_response here: agent proposals set the proposer's side to
+// 'accepted' at birth (their proposing IS their opt-in), so "≥1 side accepted"
+// would read ~100% and lie. Mutual yes (revealed) is the honest signal.
 const introsRevealed = await one("select count(*) n from intros where status = 'revealed'")
-const introsAccepted = await one(`
-  select count(*) n from intros
-  where a_response = 'accepted' or b_response = 'accepted'`)
+const introsAccepted = introsRevealed
 // Both sides messaged in-thread (≥1 each) — the gate-4 "real exchange" signal.
 const exchanges = await one("select count(*) n from events where type = 'thread_connected'")
 
@@ -85,7 +93,8 @@ console.log(`INSTALL     npm downloads: ${fmt(npm.total)} total, ${fmt(npm.lastW
   (stars === null ? '  (repo private — stars n/a)' : `  · GitHub stars: ${stars}`))
 console.log(`ACTIVATION  users: ${users} · activated (profile + ≥1 snippet): ${activated} (${pct(activated, users)} of users)`)
 console.log(`            snippets: ${snippets} · open asks: ${openAsks}`)
-console.log(`INTROS      proposed: ${introsProposed} · ≥1 side accepted: ${introsAccepted} (${pct(introsAccepted, introsProposed)}) · revealed: ${introsRevealed}`)
+console.log(`INTROS      proposed (delivered): ${introsProposed} · accepted — both said yes (revealed): ${introsAccepted} (${pct(introsAccepted, introsProposed)} of proposed)` +
+  (introsHeld > 0 ? ` · ${introsHeld} held awaiting review` : ''))
 console.log(`EXCHANGE    real exchanges (both sides messaged): ${exchanges}`)
 console.log(`\nAttribution (users.source):`)
 for (const r of bySource) console.log(`  ${r.source ?? '(none)'}: ${r.n}`)
