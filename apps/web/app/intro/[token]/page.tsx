@@ -28,7 +28,7 @@ export default async function IntroPage({ params }: { params: Promise<{ token: s
     return (
       <main>
         <h1>This introduction has lapsed</h1>
-        <p className="muted">Intro links are live for two weeks. If the match is still right, it will come around again.</p>
+        <p className="muted">Intro pages stay open for two weeks, and this one has closed quietly — the other person was never told anything. New introductions arrive the same way this one did.</p>
       </main>
     )
   }
@@ -56,8 +56,8 @@ export default async function IntroPage({ params }: { params: Promise<{ token: s
     const theirContact = side === 'a' ? intro.b_contact : intro.a_contact
     return (
       <main>
-        <h1>You both said yes</h1>
-        <div className="card">
+        <h1 className="glow">You both said yes</h1>
+        <div className="card recap">
           <p>{card}</p>
         </div>
         {theirContact ? (
