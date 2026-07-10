@@ -1,6 +1,6 @@
 # Nakodo
 
-Your agent knows what you're building better than anyone. Nakodo makes it your networker — when you need a co-founder, a collaborator, or someone strong at the thing you're weakest at, your agent finds the person, matched privately on what you're *actually building*, not what you claim.
+Your agent knows what you're building — and when an outside perspective would move it forward. Nakodo finds that person and makes the warm intro: matched privately on your actual work, revealed only on a mutual yes. Honest feedback today, a collaborator tomorrow, maybe your co-founder.
 
 *Nakōdo (仲人): the traditional Japanese matchmaker — the discreet go-between who knows both sides, and only speaks when there's a real match.*
 

@@ -1,6 +1,8 @@
 # Launch posts — drafts for Matthew (v1, 2026-07-09)
 
-*Positioning call (Matthew, 2026-07-09): Boardy owns "raise money." We own "find your co-founder / collaborator." Every post leads with that.*
+*Positioning call v2 (Matthew, 2026-07-10, supersedes the co-founder-led v1): **perspective-led.** The promise is "your agent knows when an outside perspective would move your work forward — we find that person and make the warm intro." Weekly-frequency need (fixes the graveyard's low-frequency killer); co-founder/collaborator stays as the emergent outcome and as agent-pull phrases, never the headline. Boardy still owns "raise money"; we own "the outside perspective your AI can't give you."*
+
+*Companion doc: `launch-objections.md` — the hard questions (fake profiles, "what do I do with a match", Boardy) with our honest answers, for comment replies.*
 
 *These are drafts — rewrite anything that doesn't sound like you. Post from your own accounts, reply to every comment yourself (I'll draft reply suggestions in-session when they come in). Don't post all at once: r/mcp first (densest fit, lowest stakes), r/SideProject a few days later, Show HN in week 2 once the first feedback has sharpened the pitch. Product Hunt only after HN teaches us what lands.*
 
@@ -10,15 +12,15 @@
 
 ## 1. r/mcp (first — post this one when ready)
 
-**Title:** I built an MCP server that turns your coding agent into your matchmaker — for finding a co-founder or collaborator, not followers
+**Title:** I built an MCP server that gets you the one thing your agent can't give — an outside perspective. It finds the right builder and makes a warm intro.
 
 **Body:**
 
-Solo building has one brutal failure mode: you need a person — a co-founder, a designer, someone who's three weeks ahead of you on the same problem — and your options are performative (LinkedIn), dead ("looking for cofounder" posts that sink in an hour), or random (Discord roulette).
+Solo building with agents has a quiet failure mode: your agent can build almost anything with you, but it can't give you a genuinely *outside* perspective — it's agreeable, it has no lived context, no skin in the game. The moments that actually move a project are still human: honest feedback from someone three weeks ahead of you on the same problem, a designer's eye, sometimes the person who becomes your co-founder.
 
-Meanwhile your coding agent knows *exactly* what you're building, what you're good at, and where you're stuck. It has the evidence — it watched you work.
+But here's the thing your agent *does* have: it knows exactly what you're building, what you're good at, and where you're stuck. It watched you work. That's better matching data than any profile anyone ever wrote.
 
-So I made it the matchmaker. Nakodo is an MCP server:
+So I made it the go-between (nakōdo, 仲人 — the Japanese matchmaker). Nakodo is an MCP server:
 
 - Your agent drafts your profile from your actual work. You approve every word.
 - As you build, it captures short updates (each one approved) — proof-of-work, not a résumé.
@@ -37,17 +39,15 @@ Tell me where this is wrong — the trust design especially. I built it because 
 
 ## 2. r/SideProject (a few days later)
 
-**Title:** Your AI agent already knows what you're building. I made mine find me collaborators.
+**Title:** Your AI agent knows exactly when you need an outside perspective. I made mine go find that person.
 
 **Body:**
 
-Every "find a co-founder" platform fails the same way: everyone describes themselves at their best, nobody can verify anything, and the whole thing feels like LinkedIn cosplay.
+AI made building alone possible — and made one thing scarcer: the outside eye. Your agent is brilliant and agreeable; what it can't be is someone who sees what you can't, tells you your onboarding is confusing, or is three weeks ahead of you on the exact problem you're stuck on.
 
-But my coding agent doesn't know my pitch — it knows my commits. It watched me struggle with the backend and ship the design in an afternoon. That's the honest signal a co-founder search actually needs.
+But my coding agent doesn't know my pitch — it knows my sessions. It watched me struggle with the backend and ship the design in an afternoon. So Nakodo (nakōdo, 仲人 — the Japanese go-between) makes it the introducer: it keeps a private record drawn from real work (every entry approved by you), and when someone out there is the perspective you need — or you're the perspective *they* need — you both get an anonymous card. Mutual yes → you connect and exchange contact yourselves. Either declines → the other never knows it was proposed.
 
-Nakodo (nakōdo, 仲人 — the Japanese matchmaker) is an MCP server that makes your agent your networker. It keeps a private proof-of-work record (every entry approved by you), and when someone out there matches what you need, you both get an anonymous card. Mutual yes → you connect and exchange contact yourselves. Either declines → the other never knows it was proposed.
-
-It's a social network with no feed, no faces, and no performance. The only output is the right person.
+A social network with no feed, no faces, and no performance. The only output is the right person — honest feedback today, a collaborator tomorrow, maybe your co-founder.
 
 Free while it's small. `npx -y nakodo` with any MCP-capable agent (Claude Code, Cursor, …). nakodo.dev
 
@@ -75,11 +75,11 @@ I'd genuinely value HN's read on the trust model — where does it leak?
 
 ## 4. X/Twitter (same day as r/mcp, thread starter)
 
-I made my coding agent my matchmaker.
+Your agent can build almost anything with you.
 
-It knows what I'm building better than anyone — so now it finds me collaborators: matched on proof-of-work, revealed only on mutual yes, no feed, no faces.
+The one thing it can't give you is an outside perspective — so I taught mine to go find the person who can.
 
-A social network where the only output is the right person.
+Nakodo: matched on your actual work, anonymous cards, mutual yes or nothing. No feed, no faces. The only output is the right person.
 
 `npx -y nakodo`
 

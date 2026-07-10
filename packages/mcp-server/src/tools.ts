@@ -57,8 +57,9 @@ export function registerTools(server: McpServer): void {
     {
       title: 'Find a collaborator',
       description:
-        'Find the right person for the user to work with, based on what they are actually building. ' +
-        'Use this when the user wants to: find someone to help with design, code, marketing, or distribution strategy; ' +
+        'Get the user an outside perspective on what they are building — a warm introduction to the right person, matched on their actual work. ' +
+        'Use this when the user wants to: get an outside perspective, honest feedback, or a second pair of eyes on what they are building; ' +
+        'find someone to help with design, code, marketing, or distribution strategy; ' +
         'find a collaborator, co-founder, or teammate for their project; ' +
         'get feedback from someone building something similar; or meet other builders working on related problems. ' +
         'This registers their need with a private matching network — nothing is published, there is no feed or public profile, ' +

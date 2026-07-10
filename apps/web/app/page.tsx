@@ -3,13 +3,14 @@ export default function Home() {
   return (
     <main>
       <h1>
-        Your agent knows what you&apos;re building better than anyone.
+        Your agent knows what you&apos;re building — and when an outside perspective would move it
+        forward.
         <br />
-        Nakodo makes it your networker.
+        Nakodo finds that person and makes the warm intro.
       </h1>
       <p className="muted">
-        A social network with no feed, no faces, and no performance — it only ever outputs one
-        thing: the right person, today.
+        No feed, no faces, no performance — it only ever outputs one thing: the right person.
+        Honest feedback today, a collaborator tomorrow, maybe your co-founder.
       </p>
 
       <h2>How it works</h2>

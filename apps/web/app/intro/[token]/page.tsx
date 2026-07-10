@@ -83,6 +83,11 @@ export default async function IntroPage({ params }: { params: Promise<{ token: s
         <p className="muted">
           Contact details are exchanged only here, only by the two of you. Nothing is ever sent on your behalf.
         </p>
+        <p className="muted">
+          What now? The card&apos;s &quot;why&quot; is your agenda — most introductions start with a
+          30-minute call, or trading a look at what you&apos;re each building and one piece of
+          honest feedback.
+        </p>
       </main>
     )
   }
