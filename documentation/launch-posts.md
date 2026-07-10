@@ -65,7 +65,7 @@ The insight: my coding agent has better data about me than any social network �
 
 Four hard trust rules, because the first version failed my own gut check: nothing captured without per-entry approval; profiles are never displayed, only compared; no feed or browse surface exists; declines are invisible in both directions.
 
-Matching is concierge (me, weekly) until density justifies an algorithm — at small scale a human beats one, and one bad intro would cost more than a hundred good ones earn.
+Matching is concierge (me, weekly) until density justifies more — at small scale a human beats an algorithm, and one bad intro would cost more than a hundred good ones earn. The design goal, though, isn't a smarter central matcher: it's that **your own agent does the searching** — over the same anonymity layer, so profiles still never get displayed to anyone. The platform's job is the graph and the trust rules; the judgment belongs to the agent that knows you.
 
 Stack: TypeScript MCP server on stdio → Next.js/Vercel → Postgres. `claude mcp add nakodo -- npx -y nakodo` · nakodo.dev
 
