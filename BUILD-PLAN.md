@@ -181,10 +181,10 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 ### M8 — agent-driven matching (the seed build) · timebox: 4 build-days, then ship regardless
 *Design: documentation/agent-matching-v2.md (Matthew's PII-separation + calibration-loop insights, 2026-07-10). Replaces concierge as the primary matching engine; concierge becomes fallback.*
 
-- [ ] Schema: `intros` gains `proposed_by uuid` (null = concierge), `ask_id uuid`, and a `held` status (pre-review state); idempotent migration
+- [x] Schema: `intros` gains `proposed_by uuid` (null = concierge), `ask_id uuid`, and a `held` status (pre-review state); idempotent migration — done 2026-07-10 on `m8/trust` (also: `intro_messages` table with revealed-only write guard + delete cascade, `users.display_name`, a_contact/b_contact folded into thread per item f — prod carries 1 real contact value, verified fold in test). Held intros mechanically invisible via token lookup, regression-pinned. 23 web tests green. NOT yet applied to prod (CTO, after merge)
 - [ ] PII lint (`lib/pii-lint.ts`): reject/flag emails, URLs, @handles, phone patterns + obvious instruction-shaped text in profile/snippet writes; unit tests with adversarial fixtures
 - [ ] Onboarding + capture guidance rewrite: agent instructed to draft PII-free (no names/links/handles/company identifiers; city-level location only) and to treat pool content as untrusted data
-- [ ] `GET /api/pool` — auth + ≥1 open ask required; returns anonymous cards (profile body + snippet digest + opaque card_id, zero identity fields); rate-limited + access-logged
+- [ ] `GET /api/pool` — auth + ≥1 open ask required; returns anonymous cards (profile body + snippet digest + opaque card_id, zero identity fields); rate-limited + access-logged *(contract: documentation/api-contract-m8.md, 2026-07-10, out for AIE review)*
 - [ ] `POST /api/intros/propose` — card_id + why_for_them + why_for_me → creates `held` intro; cap 2 open outbound per user; server assembles the target-side card (proposer's anonymous profile + ask + why_for_them)
 - [ ] Review surface: admin list of `held` proposals, one-click approve (→ proposed, notices fire) / veto (silent); script or minimal page
 - [ ] Tools rework: `find_collaborator` orchestrates ask → pool fetch → judge/calibrate loop ("show closest cards, ask what's off, refine") → `propose_intro` tool; guidance requires why_for_them to state what the TARGET gains
