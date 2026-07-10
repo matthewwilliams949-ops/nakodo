@@ -498,6 +498,15 @@ describe('M8 completion loop — thread lifecycle, events, notices, copy', () =>
     expect((await getRevealParties(found.intro, found.side)).counterpartName).toBe('bob')
   })
 
+  it('pending payload carries has_email (gates the no-email re-offer, §5)', async () => {
+    const withEmail = await registerUser('e@example.com')
+    const noEmail = await registerUser(undefined, { handle: 'ghost' })
+    const yes = (await (await getPendingIntros(jsonReq('/api/intros/pending', 'GET', undefined, withEmail))).json()) as { has_email: boolean }
+    const no = (await (await getPendingIntros(jsonReq('/api/intros/pending', 'GET', undefined, noEmail))).json()) as { has_email: boolean }
+    expect(yes.has_email).toBe(true)
+    expect(no.has_email).toBe(false)
+  })
+
   it('threadTurn derives whose court from the last message only', async () => {
     expect(threadTurn([], 'a')).toBe('say-hello')
     expect(threadTurn([{ id: '1', side: 'b', body: 'x', created_at: new Date() }], 'a')).toBe('your-turn')

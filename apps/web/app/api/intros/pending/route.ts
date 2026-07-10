@@ -60,5 +60,8 @@ export async function GET(req: Request): Promise<Response> {
   const rank: Record<PendingState, number> = { card: 0, say_hello: 1, message_waiting: 1 }
   out.sort((x, y) => rank[x.state] - rank[y.state])
 
-  return Response.json({ intros: out })
+  // has_email gates the agent-channel email re-offer for no-email users
+  // (reveal-handoff.md §5): the pending notice appends "add an email?" only when
+  // false. Own-data only — never any other user's email.
+  return Response.json({ intros: out, has_email: Boolean(user.email) })
 }
