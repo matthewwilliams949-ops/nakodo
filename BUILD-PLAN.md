@@ -178,7 +178,7 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - [ ] **npm publish 0.1.1 — needs Matthew (security key):** batches the perspective-led tool descriptions + `mcpName` registry marker + anything the e2e walkthrough surfaces. `cd packages/mcp-server && npm publish` in HIS terminal (browser 2FA prompt appears mid-command). Publish BEFORE post #1
 - [ ] After publish: `npx -y nakodo@latest` smoke against prod, then Matthew posts #1 (r/mcp) — seed clock starts that day
 
-### M8 — agent-driven matching (the seed build) · timebox: 3 build-days, then ship regardless
+### M8 — agent-driven matching (the seed build) · timebox: 4 build-days, then ship regardless
 *Design: documentation/agent-matching-v2.md (Matthew's PII-separation + calibration-loop insights, 2026-07-10). Replaces concierge as the primary matching engine; concierge becomes fallback.*
 
 - [ ] Schema: `intros` gains `proposed_by uuid` (null = concierge), `ask_id uuid`, and a `held` status (pre-review state); idempotent migration
@@ -190,10 +190,12 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - [ ] Tools rework: `find_collaborator` orchestrates ask → pool fetch → judge/calibrate loop ("show closest cards, ask what's off, refine") → `propose_intro` tool; guidance requires why_for_them to state what the TARGET gains
 - [ ] Five guarantees v2 wording everywhere: site, intro pages, README, tool descriptions, launch posts (#2 "profile carries no identity", #3 "agents search so humans don't scroll", #4 "…and being considered is invisible too")
 - [ ] **E2E finding v2 (2026-07-10, escalated): the reveal stage must be a DRIVEN handoff, not a passive page.** Founder read the contact-share form as "the platform asking for my email again" (re-triggering the exact v1 trust flinch) and expected the product to connect the pair after mutual accept ("it never connected us"). Fixes:
-  (a) **Reframe the form as a message TO the other person** — "Send them a way to reach you"; explicit "this goes to them, never to us" line; for users with an email on file, a one-tap "share the email I gave you (matt@…)" consent button instead of retyping (kills the asked-twice redundancy)
-  (b) **Completion loop:** when one side leaves contact, notify the other (in-session notice + email-if-on-file: "they left you a way to reach them"); delivering an explicitly-authored note IS consistent with "nothing sent on your behalf" — the user wrote it to be delivered. When both have shared → both pages show a done state: "You're connected — here's how to reach them" with copy/mailto affordance
-  (c) **In-session notice covers the whole post-accept lifecycle:** revealed-needs-your-contact, their-contact-waiting-for-you, connected
-  (d) Reveal email subject/first line carries the action, not just the news
+  (a) **The reveal reveals a person (Matthew, 2026-07-10):** onboarding collects an optional display name ("what should a match call you after a mutual yes?") — PII store only, never in the pool; revealed page opens "You both said yes — this is {name}". The card stays nameless; the yes buys personhood
+  (b) **Intro thread replaces the single contact field (Matthew's standing request, 2nd ask — adopted):** minimal message thread on the revealed intro page (`intro_messages` table: intro_id, side, body, created_at). Messages are to the other person, never to us; contact info shared inside messages is the user's free choice. HARD RULE: threads exist only inside mutually-accepted intros — no cold-messaging surface can ever exist. Async (page refresh), no chat infra. One-tap "share the email I gave you" stays as a message shortcut
+  (c) **Completion loop:** new message → other side notified (in-session notice + email-if-on-file); in-session notice covers the whole post-accept lifecycle (revealed-say-hello, message-waiting)
+  (d) Reveal email subject/first line carries the action ("say hello"), not just the news
+  (e) **Gate metric #4 becomes observable:** "real exchange" = both sides messaged in-thread (≥1 each); metrics script counts it — no more manual follow-up
+  (f) a_contact/b_contact columns: fold into the thread as its first messages (migration) or drop if unused beyond test data
 - [ ] Tests: pool returns no identity fields ever (regression-pinned); propose→held→approve→standard flow; cap enforcement; lint; MCP protocol test for the new tool; pending-notice covers revealed-needs-action state
 - [ ] Version 0.2.0; `pnpm check` green; prod migration + deploy + e2e verify (two fresh users, agent-side flow simulated over stdio)
 - **Done when:** a fresh user can go ask → agent searches pool → calibrate → propose → Matthew one-click approves → target accepts/declines with all trust properties intact — verified against prod. Then: Matthew publishes 0.2.0 (security key), posts r/mcp, seed clock starts.
