@@ -16,7 +16,7 @@ export interface IntroRow {
   card_b: string
   a_response: 'accepted' | 'declined' | null
   b_response: 'accepted' | 'declined' | null
-  status: 'held' | 'proposed' | 'revealed' | 'declined'
+  status: 'held' | 'vetoed' | 'proposed' | 'revealed' | 'declined'
   token_a: string
   token_b: string
   token_expires_at: string | Date
@@ -89,14 +89,14 @@ export async function createIntro(input: {
   return { id }
 }
 
-// M8: 'held' intros (agent-proposed, awaiting review) are excluded HERE, in
-// the lookup — a held intro's tokens resolve to nothing, so to its target it
-// is mechanically indistinguishable from an intro that was never proposed.
+// M8: 'held' (awaiting review) and 'vetoed' (review said no) intros are
+// excluded HERE, in the lookup — their tokens resolve to nothing, so to the
+// target they are mechanically indistinguishable from never having existed.
 export async function findIntroByToken(
   token: string,
 ): Promise<{ intro: IntroRow; side: 'a' | 'b' } | null> {
   const { rows } = await getDb().query<IntroRow>(
-    "select * from intros where (token_a = $1 or token_b = $1) and status <> 'held'",
+    "select * from intros where (token_a = $1 or token_b = $1) and status not in ('held', 'vetoed')",
     [token],
   )
   const intro = rows[0]
@@ -211,8 +211,9 @@ export async function postIntroMessage(
     'insert into intro_messages (intro_id, sender_id, side, body) values ($1, $2, $3, $4)',
     [intro.id, senderId, side, body],
   )
+  // Event name per reveal-handoff §8 (matches the Product lane's standard).
   await logEvent({
-    type: 'intro_message_sent',
+    type: 'message_sent',
     userId: senderId,
     metadata: { intro_id: intro.id, side },
   })
@@ -225,4 +226,74 @@ export async function getIntroMessages(introId: string): Promise<IntroMessage[]>
     [introId],
   )
   return rows
+}
+
+// ---------------------------------------------------------------------------
+// M8 seed-phase review (T6). Matthew's one-click quality floor: agent
+// proposals sit in 'held' until approved (→ 'proposed', the target is told)
+// or vetoed (→ 'vetoed', silent). Only what the REVIEWER needs is surfaced:
+// the exact card the target would see, plus why_for_me for judging intent —
+// never the proposer's identity fields.
+// ---------------------------------------------------------------------------
+
+export interface HeldProposal {
+  id: string
+  created_at: string | Date
+  card_b: string // exactly what the target will see if approved
+  why_for_me: string | null // calibration/intent signal, review-only
+}
+
+export async function listHeldProposals(): Promise<HeldProposal[]> {
+  const { rows } = await getDb().query<HeldProposal>(
+    `select i.id, i.created_at, i.card_b,
+       (select e.metadata->>'why_for_me' from events e
+         where e.type = 'intro_proposal_held' and e.metadata->>'intro_id' = i.id::text
+         limit 1) as why_for_me
+     from intros i
+     where i.status = 'held' and i.token_expires_at > now()
+     order by i.created_at asc`,
+  )
+  return rows
+}
+
+// Approve: the intro becomes a standard 'proposed' — the target gets their
+// card (email if on file; otherwise their agent surfaces it via pending).
+// The proposer is told nothing here: they already accepted by proposing, and
+// their next signal is the reveal, if it ever comes.
+export async function approveProposal(id: string): Promise<boolean> {
+  const db = getDb()
+  const { rows } = await db.query<{ id: string; user_b: string | null; card_b: string; token_b: string }>(
+    `update intros set status = 'proposed' where id = $1 and status = 'held' and token_expires_at > now()
+     returning id, user_b, card_b, token_b`,
+    [id],
+  )
+  const intro = rows[0]
+  if (!intro) return false
+  if (intro.user_b) {
+    const target = await db.query<{ email: string | null }>('select email from users where id = $1', [
+      intro.user_b,
+    ])
+    const email = target.rows[0]?.email
+    if (email) {
+      const base = `${appUrl()}/intro/${intro.token_b}`
+      await sendEmail({ to: email, ...introCard(intro.card_b, `${base}?respond=accept`, `${base}?respond=decline`) })
+    }
+  }
+  await logEvent({ type: 'intro_proposed', metadata: { intro_id: id, via: 'agent_approved' } })
+  return true
+}
+
+// Veto: silent, total. Status 'vetoed' keeps both tokens resolving to nothing
+// (findIntroByToken) and the row out of pending — to the target it never
+// existed; to the proposer it is indistinguishable from a decline (waiting,
+// forever). Nothing is sent to anyone.
+export async function vetoProposal(id: string): Promise<boolean> {
+  const { rows } = await getDb().query<{ id: string }>(
+    `update intros set status = 'vetoed', resolved_at = now() where id = $1 and status = 'held'
+     returning id`,
+    [id],
+  )
+  if (!rows[0]) return false
+  await logEvent({ type: 'intro_vetoed', metadata: { intro_id: id } })
+  return true
 }

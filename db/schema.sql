@@ -62,11 +62,14 @@ create table if not exists intros (
   a_responded_at timestamptz,
   b_response text check (b_response in ('accepted', 'declined')),
   b_responded_at timestamptz,
-  -- M8: 'held' = agent-proposed, awaiting seed-phase review. A held intro must
-  -- be invisible to its target: token lookups exclude it (lib/intros.ts) and
-  -- the pending endpoint only lists 'proposed'.
+  -- M8: 'held' = agent-proposed, awaiting seed-phase review; 'vetoed' = review
+  -- said no. Both must be invisible to the target: token lookups exclude them
+  -- (lib/intros.ts) and the pending endpoint only lists 'proposed'. A veto is
+  -- exactly as silent as a decline — the proposer (a_response already
+  -- 'accepted' from proposing) sees 'waiting' nowhere, because their token URL
+  -- is never handed out before reveal.
   status text not null default 'proposed'
-    check (status in ('held', 'proposed', 'revealed', 'declined')),
+    check (status in ('held', 'vetoed', 'proposed', 'revealed', 'declined')),
   token_a text not null unique,
   token_b text not null unique,
   token_expires_at timestamptz not null,
@@ -116,7 +119,7 @@ alter table intros add column if not exists proposed_by uuid references users(id
 alter table intros add column if not exists ask_id uuid references asks(id) on delete set null;
 alter table intros drop constraint if exists intros_status_check;
 alter table intros add constraint intros_status_check
-  check (status in ('held', 'proposed', 'revealed', 'declined'));
+  check (status in ('held', 'vetoed', 'proposed', 'revealed', 'declined'));
 
 -- Fold v1.1 contact shares into the thread as its first messages, then drop
 -- the columns. Contacts left by a since-deleted user are skipped: their

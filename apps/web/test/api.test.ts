@@ -720,3 +720,121 @@ describe('M8 support changes', () => {
     expect(record.asks[0]!.id).toBeTruthy()
   })
 })
+
+describe('review surface + full agent-intro flow (T6/T7)', () => {
+  async function heldProposal() {
+    const alice = await activated('alice', 'three weeks into an agent-memory tool', {
+      email: 'alice@example.com',
+      ask: 'eval help',
+    })
+    const bob = await activated('bob', 'builds eval harnesses', { email: 'bob@example.com' })
+    sentEmails = []
+    const res = await proposeReq(alice.token, {
+      card_id: await cardIdOf(bob.userId),
+      ask_id: alice.askId,
+      why_for_them: 'They get a real workload for their harness.',
+      why_for_me: 'Their evals validate the memory layer.',
+    })
+    expect(res.status).toBe(201)
+    const { intro_id } = (await res.json()) as { intro_id: string }
+    return { alice, bob, introId: intro_id }
+  }
+
+  it('propose → held → approve → target accepts → revealed: the whole path', async () => {
+    const { intros } = await import('../lib/intros').then((m) => ({ intros: m }))
+    const { alice, bob, introId } = await heldProposal()
+
+    // The proposer's opt-in is the proposal itself.
+    const row = (await pg.query<{ a_response: string; token_b: string }>('select a_response, token_b from intros')).rows[0]!
+    expect(row.a_response).toBe('accepted')
+
+    // Review sees what the target would see, plus why_for_me — nothing more.
+    const held = await intros.listHeldProposals()
+    expect(held).toHaveLength(1)
+    expect(held[0]!.card_b).toContain('three weeks into an agent-memory tool')
+    expect(held[0]!.why_for_me).toBe('Their evals validate the memory layer.')
+
+    // Approve: exactly one email — the target's card. The proposer gets nothing.
+    expect(await intros.approveProposal(introId)).toBe(true)
+    expect(sentEmails.map((e) => e.to)).toEqual(['bob@example.com'])
+    expect(sentEmails[0]!.text).toContain(row.token_b)
+    // and it's in bob's pending channel now
+    const pending = (await (await getPendingIntros(jsonReq('/api/intros/pending', 'GET', undefined, bob.token))).json()) as {
+      intros: unknown[]
+    }
+    expect(pending.intros).toHaveLength(1)
+    // a second approve is a no-op
+    expect(await intros.approveProposal(introId)).toBe(false)
+
+    // Target accepts → reveal fires directly (a already accepted), thread opens.
+    sentEmails = []
+    const accept = await respondIntro(jsonReq(`/api/intro/${row.token_b}`, 'POST', { response: 'accepted' }), {
+      params: Promise.resolve({ token: row.token_b }),
+    })
+    expect(((await accept.json()) as { view: string }).view).toBe('revealed')
+    expect(sentEmails).toHaveLength(2) // reveal notices to both — identity-free
+    expect(sentEmails.every((e) => !e.text.includes('alice') && !e.text.includes('bob@example.com'))).toBe(true)
+    void alice
+  })
+
+  it('veto is silent and total: no email, tokens dead for BOTH sides, pending empty, cap slot freed', async () => {
+    const { intros } = await import('../lib/intros').then((m) => ({ intros: m }))
+    const { alice, bob, introId } = await heldProposal()
+    const row = (await pg.query<{ token_a: string; token_b: string }>('select token_a, token_b from intros')).rows[0]!
+
+    expect(await intros.vetoProposal(introId)).toBe(true)
+    expect(sentEmails).toHaveLength(0)
+    expect(await findIntroByToken(row.token_a)).toBeNull()
+    expect(await findIntroByToken(row.token_b)).toBeNull()
+    const pendingB = (await (await getPendingIntros(jsonReq('/api/intros/pending', 'GET', undefined, bob.token))).json()) as {
+      intros: unknown[]
+    }
+    expect(pendingB.intros).toHaveLength(0)
+    // a vetoed proposal cannot be approved later
+    expect(await intros.approveProposal(introId)).toBe(false)
+
+    // the veto freed alice's cap slot: she can propose to someone new
+    const carol = await activated('carol', 'design systems for agent UIs')
+    const again = await proposeReq(alice.token, {
+      card_id: await cardIdOf(carol.userId),
+      ask_id: alice.askId,
+      why_for_them: 'A live product to design against.',
+      why_for_me: 'Design eyes on the onboarding.',
+    })
+    expect(again.status).toBe(201)
+  })
+
+  it('expired held proposals free the cap and leave review', async () => {
+    const { intros } = await import('../lib/intros').then((m) => ({ intros: m }))
+    const { alice, introId } = await heldProposal()
+    await pg.query("update intros set token_expires_at = now() - interval '1 day'")
+
+    expect(await intros.listHeldProposals()).toHaveLength(0) // gone from review
+    expect(await intros.approveProposal(introId)).toBe(false) // and unapprovable
+
+    const carol = await activated('carol', 'design systems')
+    const res = await proposeReq(alice.token, {
+      card_id: await cardIdOf(carol.userId),
+      ask_id: alice.askId,
+      why_for_them: 'A live product to design against.',
+      why_for_me: 'Design eyes on onboarding.',
+    })
+    expect(res.status).toBe(201) // slot freed by expiry
+  })
+
+  it('decline-silence is unchanged for approved agent intros', async () => {
+    const { intros } = await import('../lib/intros').then((m) => ({ intros: m }))
+    const { introId } = await heldProposal()
+    await intros.approveProposal(introId)
+    sentEmails = []
+
+    const row = (await pg.query<{ token_b: string }>('select token_b from intros')).rows[0]!
+    const decline = await respondIntro(jsonReq(`/api/intro/${row.token_b}`, 'POST', { response: 'declined' }), {
+      params: Promise.resolve({ token: row.token_b }),
+    })
+    expect(((await decline.json()) as { view: string }).view).toBe('closed')
+    expect(sentEmails).toHaveLength(0) // proposer hears nothing, forever
+    const status = (await pg.query<{ status: string }>('select status from intros')).rows[0]!
+    expect(status.status).toBe('declined')
+  })
+})

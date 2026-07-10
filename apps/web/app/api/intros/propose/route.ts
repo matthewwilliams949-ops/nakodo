@@ -76,8 +76,10 @@ export async function POST(req: Request): Promise<Response> {
 
   // Proposal scarcity: max 2 open outbound. Counts only the caller's own
   // proposals — the single cap-related number the caller may ever see.
+  // Expired proposals free their slot: a held intro nobody ever reviewed must
+  // not lock the user's cap forever.
   const outbound = await db.query<{ n: number }>(
-    "select count(*)::int as n from intros where proposed_by = $1 and status in ('held', 'proposed')",
+    "select count(*)::int as n from intros where proposed_by = $1 and status in ('held', 'proposed') and token_expires_at > now()",
     [user.id],
   )
   const openOutbound = outbound.rows[0]!.n
@@ -87,7 +89,7 @@ export async function POST(req: Request): Promise<Response> {
 
   // Same-direction duplicate: discloses only the caller's own prior action.
   const dup = await db.query(
-    "select 1 from intros where user_a = $1 and user_b = $2 and status in ('held', 'proposed') limit 1",
+    "select 1 from intros where user_a = $1 and user_b = $2 and status in ('held', 'proposed') and token_expires_at > now() limit 1",
     [user.id, targetId],
   )
   if (dup.rows[0]) return Response.json({ error: 'already_proposed' }, { status: 409 })
@@ -95,8 +97,8 @@ export async function POST(req: Request): Promise<Response> {
   // One opaque answer for reverse-direction collision AND inbound dampening.
   const busy = await db.query<{ reverse: boolean; inbound: number }>(
     `select
-       exists(select 1 from intros where user_a = $2 and user_b = $1 and status in ('held', 'proposed')) as reverse,
-       (select count(*)::int from intros where user_b = $2 and status in ('held', 'proposed')) as inbound`,
+       exists(select 1 from intros where user_a = $2 and user_b = $1 and status in ('held', 'proposed') and token_expires_at > now()) as reverse,
+       (select count(*)::int from intros where user_b = $2 and status in ('held', 'proposed') and token_expires_at > now()) as inbound`,
     [user.id, targetId],
   )
   if (busy.rows[0]!.reverse || busy.rows[0]!.inbound >= MAX_OPEN_INBOUND) {
@@ -122,9 +124,12 @@ export async function POST(req: Request): Promise<Response> {
     `Why this could be for you: ${why_for_them}`,
   ].join('\n\n')
 
+  // Proposing IS the proposer's opt-in: a_response is 'accepted' from birth,
+  // so the target's accept completes the double opt-in directly, and the
+  // proposer's own pending channel never offers them their own proposal.
   const { rows } = await db.query<{ id: string }>(
-    `insert into intros (user_a, user_b, proposed_by, ask_id, card_a, card_b, token_a, token_b, token_expires_at, status)
-     values ($1, $2, $1, $3, $4, $5, $6, $7, now() + interval '${TOKEN_TTL_DAYS} days', 'held')
+    `insert into intros (user_a, user_b, proposed_by, ask_id, card_a, card_b, token_a, token_b, token_expires_at, status, a_response, a_responded_at)
+     values ($1, $2, $1, $3, $4, $5, $6, $7, now() + interval '${TOKEN_TTL_DAYS} days', 'held', 'accepted', now())
      returning id`,
     [user.id, targetId, ask_id, cardA, cardB, generateToken(), generateToken()],
   )
