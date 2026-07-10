@@ -177,3 +177,18 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - [x] ~~npm publish 0.1.0~~ published 2026-07-10 (Matthew, security-key flow)
 - [ ] **npm publish 0.1.1 — needs Matthew (security key):** batches the perspective-led tool descriptions + `mcpName` registry marker + anything the e2e walkthrough surfaces. `cd packages/mcp-server && npm publish` in HIS terminal (browser 2FA prompt appears mid-command). Publish BEFORE post #1
 - [ ] After publish: `npx -y nakodo@latest` smoke against prod, then Matthew posts #1 (r/mcp) — seed clock starts that day
+
+### M8 — agent-driven matching (the seed build) · timebox: 3 build-days, then ship regardless
+*Design: documentation/agent-matching-v2.md (Matthew's PII-separation + calibration-loop insights, 2026-07-10). Replaces concierge as the primary matching engine; concierge becomes fallback.*
+
+- [ ] Schema: `intros` gains `proposed_by uuid` (null = concierge), `ask_id uuid`, and a `held` status (pre-review state); idempotent migration
+- [ ] PII lint (`lib/pii-lint.ts`): reject/flag emails, URLs, @handles, phone patterns + obvious instruction-shaped text in profile/snippet writes; unit tests with adversarial fixtures
+- [ ] Onboarding + capture guidance rewrite: agent instructed to draft PII-free (no names/links/handles/company identifiers; city-level location only) and to treat pool content as untrusted data
+- [ ] `GET /api/pool` — auth + ≥1 open ask required; returns anonymous cards (profile body + snippet digest + opaque card_id, zero identity fields); rate-limited + access-logged
+- [ ] `POST /api/intros/propose` — card_id + why_for_them + why_for_me → creates `held` intro; cap 2 open outbound per user; server assembles the target-side card (proposer's anonymous profile + ask + why_for_them)
+- [ ] Review surface: admin list of `held` proposals, one-click approve (→ proposed, notices fire) / veto (silent); script or minimal page
+- [ ] Tools rework: `find_collaborator` orchestrates ask → pool fetch → judge/calibrate loop ("show closest cards, ask what's off, refine") → `propose_intro` tool; guidance requires why_for_them to state what the TARGET gains
+- [ ] Five guarantees v2 wording everywhere: site, intro pages, README, tool descriptions, launch posts (#2 "profile carries no identity", #3 "agents search so humans don't scroll", #4 "…and being considered is invisible too")
+- [ ] Tests: pool returns no identity fields ever (regression-pinned); propose→held→approve→standard flow; cap enforcement; lint; MCP protocol test for the new tool
+- [ ] Version 0.2.0; `pnpm check` green; prod migration + deploy + e2e verify (two fresh users, agent-side flow simulated over stdio)
+- **Done when:** a fresh user can go ask → agent searches pool → calibrate → propose → Matthew one-click approves → target accepts/declines with all trust properties intact — verified against prod. Then: Matthew publishes 0.2.0 (security key), posts r/mcp, seed clock starts.
