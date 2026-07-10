@@ -1,7 +1,8 @@
 // Weekly funnel snapshot (BUILD-PLAN M6). Run: pnpm metrics
 // Prints the four funnel stages against the SCOPE.md gate numbers.
-// Exchanges are logged manually: insert an event with type 'exchange_confirmed'
-// (metadata: { intro_id }) via Supabase Studio when a revealed pair actually talks.
+// Gate metric 4 ("real exchange") is now OBSERVABLE, not manual: a
+// `thread_connected` event fires the moment both sides of a revealed intro have
+// each posted ≥1 message (lib/intros.ts). No more Studio follow-up.
 import pg from 'pg'
 
 const url = process.env.DATABASE_URL
@@ -56,7 +57,8 @@ const introsRevealed = await one("select count(*) n from intros where status = '
 const introsAccepted = await one(`
   select count(*) n from intros
   where a_response = 'accepted' or b_response = 'accepted'`)
-const exchanges = await one("select count(*) n from events where type = 'exchange_confirmed'")
+// Both sides messaged in-thread (≥1 each) — the gate-4 "real exchange" signal.
+const exchanges = await one("select count(*) n from events where type = 'thread_connected'")
 
 const bySource = (
   await db.query<{ source: string | null; n: string }>(
@@ -84,7 +86,7 @@ console.log(`INSTALL     npm downloads: ${fmt(npm.total)} total, ${fmt(npm.lastW
 console.log(`ACTIVATION  users: ${users} · activated (profile + ≥1 snippet): ${activated} (${pct(activated, users)} of users)`)
 console.log(`            snippets: ${snippets} · open asks: ${openAsks}`)
 console.log(`INTROS      proposed: ${introsProposed} · ≥1 side accepted: ${introsAccepted} (${pct(introsAccepted, introsProposed)}) · revealed: ${introsRevealed}`)
-console.log(`EXCHANGE    confirmed exchanges: ${exchanges}`)
+console.log(`EXCHANGE    real exchanges (both sides messaged): ${exchanges}`)
 console.log(`\nAttribution (users.source):`)
 for (const r of bySource) console.log(`  ${r.source ?? '(none)'}: ${r.n}`)
 if (bySource.length === 0) console.log('  (no users yet)')

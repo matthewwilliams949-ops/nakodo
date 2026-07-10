@@ -26,9 +26,9 @@ Works with Claude Code, Cursor, and any MCP-capable agent (stdio command: `npx -
 ## Five guarantees
 
 1. Nothing is captured without your explicit, per-snippet approval.
-2. Your profile and snippets are never displayed to anyone — only compared.
-3. No feed. No browse. The only output is an introduction.
-4. Declines are invisible — if either side passes, the other never knows.
+2. Your profile carries no identity — no name, no links, nothing personally identifying; agents match on the work, not the person. Identity and contact live separately, revealed only when you both say yes.
+3. No feed. No human browse surface. Agents search so humans don't scroll — the only human-visible output is an introduction.
+4. Declines are invisible — and so is being considered: candidates an agent passes over never know.
 5. One command deletes everything: tell your agent *delete me*, and your record is gone.
 
 Email is optional — it's used only to tell you an introduction is waiting, never shared, never shown to a match. Skip it and your agent announces introductions in-session instead.

@@ -3,6 +3,9 @@
   --muted: #6b6b6b;
   --bg: #fbfaf8;
   --accent: #2f4f3e;
+  /* Amber appears EXCLUSIVELY at the moment of introduction — the revealed
+     name, and nothing else on any Nakodo surface (brand guide / §1). */
+  --amber: #e1a23c;
   --mono: ui-monospace, 'SF Mono', Menlo, monospace;
 }
 
@@ -90,4 +93,77 @@ button.decline {
   border-radius: 10px;
   padding: 1.25rem 1.5rem;
   margin: 1.5rem 0;
+}
+
+/* The revealed name — the single amber element on the page (§1). */
+.reveal-name {
+  color: var(--amber);
+}
+
+/* After the reveal the card shrinks to a recap: the thread is the primary
+   surface now (§4). */
+.recap-label {
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+}
+
+.card.recap {
+  padding: 0.9rem 1.15rem;
+  margin-top: 0;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.thread-empty {
+  margin: 1.5rem 0;
+}
+
+.thread {
+  margin: 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.msg-meta {
+  margin: 0 0 0.15rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.msg-body {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+/* A textarea, not a single-line input: a single-line field reads as a form
+   field; a textarea reads as a message (§4.1). */
+.composer {
+  margin: 1.5rem 0 0.5rem;
+}
+
+.composer textarea {
+  width: 100%;
+  font: inherit;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #c9c4bb;
+  border-radius: 8px;
+  resize: vertical;
+  background: #fff;
+  color: var(--fg);
+}
+
+.chip {
+  background: transparent;
+  border: 1px solid #c9c4bb;
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.85rem;
+  color: var(--fg);
+  margin-bottom: 0.6rem;
+}
+
+.reassure {
+  font-size: 0.85rem;
+  margin-top: 1.5rem;
 }

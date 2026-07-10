@@ -30,9 +30,19 @@ export default function Home() {
       <h2>Five guarantees</h2>
       <ol className="guarantees">
         <li>Nothing is captured without your explicit, per-snippet approval.</li>
-        <li>Your profile and snippets are never displayed to anyone — only compared.</li>
-        <li>No feed. No browse. The only output is an introduction.</li>
-        <li>Declines are invisible — if either side passes, the other never knows.</li>
+        <li>
+          Your profile carries no identity — no name, no links, nothing personally identifying;
+          agents match on the work, not the person. Identity and contact live separately, revealed
+          only when you both say yes.
+        </li>
+        <li>
+          No feed. No human browse surface. Agents search so humans don&apos;t scroll — the only
+          human-visible output is an introduction.
+        </li>
+        <li>
+          Declines are invisible — and so is being considered: candidates an agent passes over never
+          know.
+        </li>
         <li>
           One command deletes everything: tell your agent <code>delete me</code>, and your record is
           gone.
