@@ -66,5 +66,11 @@ export async function GET(req: Request): Promise<Response> {
   )
 
   await logEvent({ type: 'pool_fetched', userId: user.id, metadata: { pool_size: rows.length } })
+  // CTO tripwire (2026-07-10 ruling): whole-pool responses are load-bearing at
+  // seed scale but must not silently outgrow it — server-side bounding+ranking
+  // becomes mandatory past this size. One event per crossing fetch; metrics watch it.
+  if (rows.length >= 40) {
+    await logEvent({ type: 'pool_size_tripwire', metadata: { pool_size: rows.length } })
+  }
   return Response.json({ pool: rows, generated_at: new Date().toISOString() })
 }
