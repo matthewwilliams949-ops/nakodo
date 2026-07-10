@@ -11,6 +11,9 @@ create table if not exists users (
   -- match, not required to participate. Contact exchange happens in-app.
   email text unique,
   handle text,
+  -- M8: what a match may call this person after a mutual yes. PII store only —
+  -- shown on the revealed intro page, never in any card or pool response.
+  display_name text,
   location text,
   token_hash text not null unique,
   source text, -- attribution: how the agent found the server (Motion 3 instrument)
@@ -46,24 +49,41 @@ create table if not exists intros (
   id uuid primary key default gen_random_uuid(),
   user_a uuid references users(id) on delete set null,
   user_b uuid references users(id) on delete set null,
+  -- M8: agent-proposed intros carry their proposer (null = concierge) and the
+  -- ask they answer. SET NULL on user delete: delete_me anonymizes proposals.
+  proposed_by uuid references users(id) on delete set null,
+  ask_id uuid references asks(id) on delete set null,
   card_a text not null, -- anonymous card shown TO user_a (describes user_b)
   card_b text not null, -- anonymous card shown TO user_b (describes user_a)
   a_response text check (a_response in ('accepted', 'declined')),
   a_responded_at timestamptz,
   b_response text check (b_response in ('accepted', 'declined')),
   b_responded_at timestamptz,
+  -- M8: 'held' = agent-proposed, awaiting seed-phase review. A held intro must
+  -- be invisible to its target: token lookups exclude it (lib/intros.ts) and
+  -- the pending endpoint only lists 'proposed'.
   status text not null default 'proposed'
-    check (status in ('proposed', 'revealed', 'declined')),
+    check (status in ('held', 'proposed', 'revealed', 'declined')),
   token_a text not null unique,
   token_b text not null unique,
   token_expires_at timestamptz not null,
-  -- v1.1: after reveal, each side may leave contact details for the other.
-  -- The platform never transmits contact info on anyone's behalf — these are
-  -- only ever displayed on the counterpart's own intro page.
-  a_contact text,
-  b_contact text,
   created_at timestamptz not null default now(),
   resolved_at timestamptz
+);
+
+-- M8: the intro thread. Messages are person-to-person — the platform stores
+-- and displays them on the two intro pages, never emails their content.
+-- HARD RULE: threads exist only inside mutually-accepted intros; writes are
+-- refused unless the intro is revealed (lib/intros.ts, regression-pinned).
+-- sender_id cascades so delete_me removes a user's messages; side (not sender)
+-- drives rendering so the surviving thread still displays correctly.
+create table if not exists intro_messages (
+  id uuid primary key default gen_random_uuid(),
+  intro_id uuid not null references intros(id) on delete cascade,
+  sender_id uuid not null references users(id) on delete cascade,
+  side text not null check (side in ('a', 'b')),
+  body text not null,
+  created_at timestamptz not null default now()
 );
 
 create table if not exists events (
@@ -78,9 +98,38 @@ create table if not exists events (
 create index if not exists events_type_idx on events (type, created_at);
 create index if not exists snippets_user_idx on snippets (user_id, created_at);
 create index if not exists asks_user_idx on asks (user_id, status);
+create index if not exists intro_messages_intro_idx on intro_messages (intro_id, created_at);
 
 -- v1.1 trust redesign (2026-07-09) — idempotent migrations for existing databases.
--- Email becomes optional (notification-only); contact exchange moves in-app.
+-- Email becomes optional (notification-only). (The v1.1 a_contact/b_contact
+-- columns are superseded by intro_messages; the M8 block below folds them.)
 alter table users alter column email drop not null;
-alter table intros add column if not exists a_contact text;
-alter table intros add column if not exists b_contact text;
+
+-- M8 agent-driven matching (2026-07-10) — idempotent migrations for existing
+-- databases. New columns, the 'held' pre-review status, and the intro thread.
+alter table users add column if not exists display_name text;
+alter table intros add column if not exists proposed_by uuid references users(id) on delete set null;
+alter table intros add column if not exists ask_id uuid references asks(id) on delete set null;
+alter table intros drop constraint if exists intros_status_check;
+alter table intros add constraint intros_status_check
+  check (status in ('held', 'proposed', 'revealed', 'declined'));
+
+-- Fold v1.1 contact shares into the thread as its first messages, then drop
+-- the columns. Contacts left by a since-deleted user are skipped: their
+-- content dies with them (guarantee 5), same as the sender_id cascade.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'intros' and column_name = 'a_contact'
+  ) then
+    insert into intro_messages (intro_id, sender_id, side, body, created_at)
+      select id, user_a, 'a', a_contact, coalesce(resolved_at, created_at)
+      from intros where a_contact is not null and user_a is not null;
+    insert into intro_messages (intro_id, sender_id, side, body, created_at)
+      select id, user_b, 'b', b_contact, coalesce(resolved_at, created_at)
+      from intros where b_contact is not null and user_b is not null;
+    alter table intros drop column a_contact;
+    alter table intros drop column b_contact;
+  end if;
+end $$;

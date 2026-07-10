@@ -10,16 +10,23 @@ export interface IntroRow {
   id: string
   user_a: string | null
   user_b: string | null
+  proposed_by: string | null // M8: proposing user (null = concierge)
+  ask_id: string | null // M8: the ask this intro answers
   card_a: string
   card_b: string
   a_response: 'accepted' | 'declined' | null
   b_response: 'accepted' | 'declined' | null
-  status: 'proposed' | 'revealed' | 'declined'
+  status: 'held' | 'proposed' | 'revealed' | 'declined'
   token_a: string
   token_b: string
   token_expires_at: string | Date
-  a_contact: string | null
-  b_contact: string | null
+}
+
+export interface IntroMessage {
+  id: string
+  side: 'a' | 'b'
+  body: string
+  created_at: string | Date
 }
 
 export function appUrl(): string {
@@ -82,11 +89,14 @@ export async function createIntro(input: {
   return { id }
 }
 
+// M8: 'held' intros (agent-proposed, awaiting review) are excluded HERE, in
+// the lookup — a held intro's tokens resolve to nothing, so to its target it
+// is mechanically indistinguishable from an intro that was never proposed.
 export async function findIntroByToken(
   token: string,
 ): Promise<{ intro: IntroRow; side: 'a' | 'b' } | null> {
   const { rows } = await getDb().query<IntroRow>(
-    'select * from intros where token_a = $1 or token_b = $1',
+    "select * from intros where (token_a = $1 or token_b = $1) and status <> 'held'",
     [token],
   )
   const intro = rows[0]
@@ -180,25 +190,39 @@ async function sendRevealNotices(intro: IntroRow): Promise<void> {
   }
 }
 
-// v1.1: after reveal, each side may leave contact details for the other.
-// Only writable on a revealed intro; only ever displayed on the counterpart's
-// own intro page.
-export async function setContact(
+// M8: the intro thread (replaces the v1.1 single contact field). Messages are
+// person-to-person; contact details shared inside them are the sender's free
+// choice. HARD RULE, enforced here and regression-pinned: a message can only
+// ever be written to a REVEALED intro — no cold-messaging surface can exist.
+export async function postIntroMessage(
   token: string,
-  contact: string,
-): Promise<{ view: IntroView } | null> {
+  body: string,
+): Promise<{ view: IntroView; posted: boolean } | null> {
   const found = await findIntroByToken(token)
   if (!found) return null
   const { intro, side } = found
   const view = viewFor(intro, side)
-  if (view !== 'revealed') return { view }
+  if (view !== 'revealed') return { view, posted: false }
 
-  const col = side === 'a' ? 'a_contact' : 'b_contact'
-  await getDb().query(`update intros set ${col} = $1 where id = $2`, [contact, intro.id])
+  const senderId = side === 'a' ? intro.user_a : intro.user_b
+  if (!senderId) return { view, posted: false } // sender deleted their account
+
+  await getDb().query(
+    'insert into intro_messages (intro_id, sender_id, side, body) values ($1, $2, $3, $4)',
+    [intro.id, senderId, side, body],
+  )
   await logEvent({
-    type: 'contact_shared',
-    userId: side === 'a' ? intro.user_a : intro.user_b,
+    type: 'intro_message_sent',
+    userId: senderId,
     metadata: { intro_id: intro.id, side },
   })
-  return { view: 'revealed' }
+  return { view: 'revealed', posted: true }
+}
+
+export async function getIntroMessages(introId: string): Promise<IntroMessage[]> {
+  const { rows } = await getDb().query<IntroMessage>(
+    'select id, side, body, created_at from intro_messages where intro_id = $1 order by created_at asc, id asc',
+    [introId],
+  )
+  return rows
 }

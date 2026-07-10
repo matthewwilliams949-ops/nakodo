@@ -38,7 +38,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   sentEmails = []
-  await pg.exec('delete from events; delete from intros; delete from asks; delete from snippets; delete from profiles; delete from users;')
+  await pg.exec('delete from events; delete from intro_messages; delete from intros; delete from asks; delete from snippets; delete from profiles; delete from users;')
 })
 
 function jsonReq(url: string, method: string, body?: unknown, token?: string): Request {
@@ -79,6 +79,12 @@ describe('registration', () => {
     await registerUser('a@example.com')
     const res = await register(jsonReq('/api/register', 'POST', { email: 'a@example.com' }))
     expect(res.status).toBe(409)
+  })
+
+  it('stores display_name in the PII store (M8)', async () => {
+    await registerUser('a@example.com', { display_name: 'Alice W' })
+    const users = await pg.query<{ display_name: string }>('select display_name from users')
+    expect(users.rows[0]!.display_name).toBe('Alice W')
   })
 
   it('registers without an email — email is optional (v1.1)', async () => {
@@ -215,32 +221,74 @@ describe('intro flow', () => {
     expect(intro.status).toBe('revealed')
   })
 
-  it('contact exchange: only after reveal, stored per side, never emailed', async () => {
+  it('thread messages: refused before reveal, stored per side after, never emailed', async () => {
     const { tokenA, tokenB } = await setupIntro()
 
-    // Before reveal: contact share is refused
-    const early = await respondIntro(jsonReq(`/api/intro/${tokenA}`, 'POST', { contact: 'a@x.dev' }), {
+    // HARD RULE (regression-pinned): no message can ever be written to an
+    // intro that is not revealed — no cold-messaging surface can exist.
+    const early = await respondIntro(jsonReq(`/api/intro/${tokenA}`, 'POST', { message: 'hi there' }), {
       params: Promise.resolve({ token: tokenA }),
     })
     expect(early.status).toBe(409)
+    expect((await pg.query('select * from intro_messages')).rows).toHaveLength(0)
 
     await respond(tokenA, 'accepted')
     await respond(tokenB, 'accepted')
     sentEmails = []
 
-    const shareA = await respondIntro(jsonReq(`/api/intro/${tokenA}`, 'POST', { contact: 'a@x.dev or @alice' }), {
+    const msgA = await respondIntro(jsonReq(`/api/intro/${tokenA}`, 'POST', { message: 'hello — a@x.dev or @alice' }), {
       params: Promise.resolve({ token: tokenA }),
     })
-    expect(shareA.status).toBe(200)
-    const shareB = await respondIntro(jsonReq(`/api/intro/${tokenB}`, 'POST', { contact: '@bob on X' }), {
+    expect(msgA.status).toBe(200)
+    // legacy alias: the v1.1 contact form field becomes a plain message
+    const msgB = await respondIntro(jsonReq(`/api/intro/${tokenB}`, 'POST', { contact: '@bob on X' }), {
       params: Promise.resolve({ token: tokenB }),
     })
-    expect(shareB.status).toBe(200)
+    expect(msgB.status).toBe(200)
 
-    const row = (await pg.query<{ a_contact: string; b_contact: string }>('select a_contact, b_contact from intros')).rows[0]!
-    expect(row.a_contact).toBe('a@x.dev or @alice')
-    expect(row.b_contact).toBe('@bob on X')
-    expect(sentEmails).toHaveLength(0) // the platform never emails contact details
+    const rows = (await pg.query<{ side: string; body: string }>('select side, body from intro_messages order by created_at')).rows
+    expect(rows).toEqual([
+      { side: 'a', body: 'hello — a@x.dev or @alice' },
+      { side: 'b', body: '@bob on X' },
+    ])
+    expect(sentEmails).toHaveLength(0) // the platform never emails message content
+  })
+
+  it("held intros are invisible: tokens resolve to nothing, pending excludes them", async () => {
+    const { tokenA, tokenB, bearerB } = await setupIntro()
+    await pg.query("update intros set status = 'held'")
+
+    // To the target, a held intro is indistinguishable from one that never existed.
+    expect(await findIntroByToken(tokenA)).toBeNull()
+    expect((await respond(tokenB, 'accepted')).status).toBe(404)
+    const forB = (await (await getPendingIntros(jsonReq('/api/intros/pending', 'GET', undefined, bearerB))).json()) as {
+      intros: unknown[]
+    }
+    expect(forB.intros).toHaveLength(0)
+  })
+
+  it('delete_me removes own thread messages and anonymizes own proposals', async () => {
+    const { tokenA, tokenB, bearerA } = await setupIntro()
+    await respond(tokenA, 'accepted')
+    await respond(tokenB, 'accepted')
+    for (const [token, message] of [
+      [tokenA, 'from alice'],
+      [tokenB, 'from bob'],
+    ] as const) {
+      await respondIntro(jsonReq(`/api/intro/${token}`, 'POST', { message }), {
+        params: Promise.resolve({ token }),
+      })
+    }
+    // pretend alice's agent proposed this intro
+    await pg.query("update intros set proposed_by = (select id from users where handle = 'alice')")
+
+    expect((await deleteMe(jsonReq('/api/me', 'DELETE', undefined, bearerA))).status).toBe(200)
+
+    const messages = (await pg.query<{ side: string; body: string }>('select side, body from intro_messages')).rows
+    expect(messages).toEqual([{ side: 'b', body: 'from bob' }]) // alice's message is gone, bob's survives
+    const intro = (await pg.query<{ proposed_by: string | null; user_a: string | null }>('select proposed_by, user_a from intros')).rows[0]!
+    expect(intro.proposed_by).toBeNull()
+    expect(intro.user_a).toBeNull()
   })
 
   it('pending intros endpoint lists only own unanswered sides', async () => {
@@ -327,5 +375,46 @@ describe('intro flow', () => {
   it('unknown token → 404', async () => {
     const res = await respond('deadbeef', 'accepted')
     expect(res.status).toBe(404)
+  })
+})
+
+describe('schema migration (M8)', () => {
+  const schema = readFileSync(join(import.meta.dirname, '..', '..', '..', 'db', 'schema.sql'), 'utf8')
+
+  it('re-applies idempotently on a current database', async () => {
+    const fresh = new PGlite()
+    await fresh.exec(schema)
+    await fresh.exec(schema) // second apply must not error
+    const cols = await fresh.query<{ column_name: string }>(
+      "select column_name from information_schema.columns where table_name = 'intros'",
+    )
+    const names = cols.rows.map((c) => c.column_name)
+    expect(names).toContain('proposed_by')
+    expect(names).toContain('ask_id')
+    expect(names).not.toContain('a_contact')
+  })
+
+  it('folds v1.1 contact columns into the thread, then drops them', async () => {
+    const fresh = new PGlite()
+    await fresh.exec(schema)
+    // Simulate a v1.1 database: contact columns exist and one holds data.
+    await fresh.exec('alter table intros add column a_contact text; alter table intros add column b_contact text;')
+    await fresh.exec(`
+      insert into users (id, handle, token_hash) values
+        ('00000000-0000-0000-0000-00000000000a', 'ua', 'ha'),
+        ('00000000-0000-0000-0000-00000000000b', 'ub', 'hb');
+      insert into intros (user_a, user_b, card_a, card_b, token_a, token_b, token_expires_at, status, b_contact, resolved_at)
+      values ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000b',
+              'ca', 'cb', 'ta', 'tb', now() + interval '14 days', 'revealed', 'reach me: b@x.dev', now());
+    `)
+
+    await fresh.exec(schema) // the migration runs
+
+    const messages = await fresh.query<{ side: string; body: string }>('select side, body from intro_messages')
+    expect(messages.rows).toEqual([{ side: 'b', body: 'reach me: b@x.dev' }])
+    const cols = await fresh.query<{ column_name: string }>(
+      "select column_name from information_schema.columns where table_name = 'intros' and column_name in ('a_contact', 'b_contact')",
+    )
+    expect(cols.rows).toHaveLength(0)
   })
 })

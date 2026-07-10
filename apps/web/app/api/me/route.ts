@@ -2,8 +2,9 @@ import { getDb } from '../../../lib/db'
 import { authenticate, unauthorized } from '../../../lib/auth'
 import { logEvent } from '../../../lib/events'
 
-// delete_me: the fifth trust guarantee. Cascades profile/snippets/asks;
-// FK SET NULL anonymizes their side of intros and past events (schema.sql).
+// delete_me: the fifth trust guarantee. Cascades profile/snippets/asks and
+// (M8) their intro-thread messages; FK SET NULL anonymizes their side of
+// intros, their proposals (proposed_by), and past events (schema.sql).
 export async function DELETE(req: Request): Promise<Response> {
   const user = await authenticate(req)
   if (!user) return unauthorized()
