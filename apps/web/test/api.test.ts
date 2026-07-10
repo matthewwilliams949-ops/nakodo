@@ -838,3 +838,32 @@ describe('review surface + full agent-intro flow (T6/T7)', () => {
     expect(status.status).toBe('declined')
   })
 })
+
+describe('PATCH /api/me (identity-store updates)', () => {
+  it('adds an email later, clears it with null, guards uniqueness, requires auth', async () => {
+    const patch = (body: unknown, token?: string) =>
+      import('../app/api/me/route').then((m) => m.PATCH(jsonReq('/api/me', 'PATCH', body, token)))
+
+    expect((await patch({ email: 'x@example.com' })).status).toBe(401)
+
+    const token = await registerUser(undefined, { handle: 'ghost' })
+    expect((await patch({ email: 'late@example.com', display_name: 'Ghost' }, token)).status).toBe(200)
+    let row = (await pg.query<{ email: string | null; display_name: string | null }>('select email, display_name from users')).rows[0]!
+    expect(row).toEqual({ email: 'late@example.com', display_name: 'Ghost' })
+
+    // uniqueness: someone else's email is refused
+    await registerUser('taken@example.com')
+    expect((await patch({ email: 'taken@example.com' }, token)).status).toBe(409)
+
+    // explicit null clears; empty body is invalid
+    expect((await patch({ email: null }, token)).status).toBe(200)
+    row = (await pg.query<{ email: string | null; display_name: string | null }>("select email, display_name from users where handle = 'ghost'")).rows[0]!
+    expect(row).toEqual({ email: null, display_name: 'Ghost' })
+    expect((await patch({}, token)).status).toBe(400)
+
+    // events carry field names, never values
+    const ev = await pg.query<{ metadata: { fields: string[] } }>("select metadata from events where type = 'identity_updated' order by id")
+    expect(ev.rows.length).toBeGreaterThan(0)
+    expect(JSON.stringify(ev.rows)).not.toContain('late@example.com')
+  })
+})
