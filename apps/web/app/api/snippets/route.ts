@@ -2,16 +2,25 @@ import { z } from 'zod'
 import { getDb } from '../../../lib/db'
 import { authenticate, unauthorized } from '../../../lib/auth'
 import { logEvent } from '../../../lib/events'
+import { lintPII, piiRejection } from '../../../lib/pii-lint'
 
 const Body = z.object({ body: z.string().min(1).max(5_000) })
 
 // Only ever called after explicit per-snippet human approval (trust rule 1 —
 // enforced in the MCP tool description and flow; the API trusts its client).
+// M8: snippets feed the anonymous pool cards, so they are PII-linted like
+// profiles — rejected writes never touch the pool (guarantee 2, mechanical).
 export async function POST(req: Request): Promise<Response> {
   const user = await authenticate(req)
   if (!user) return unauthorized()
   const parsed = Body.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return Response.json({ error: 'invalid_body' }, { status: 400 })
+
+  const lint = lintPII(parsed.data.body)
+  if (!lint.clean) {
+    await logEvent({ type: 'pii_lint_rejected', userId: user.id, metadata: { surface: 'snippet', flags: lint.flags } })
+    return piiRejection(lint.findings, lint.flags)
+  }
 
   const { rows } = await getDb().query<{ id: string }>(
     'insert into snippets (user_id, body) values ($1, $2) returning id',
