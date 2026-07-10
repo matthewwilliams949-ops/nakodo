@@ -867,3 +867,25 @@ describe('PATCH /api/me (identity-store updates)', () => {
     expect(JSON.stringify(ev.rows)).not.toContain('late@example.com')
   })
 })
+
+describe('pool size tripwire (CTO gate)', () => {
+  it('hard-fails past the whole-fetch threshold instead of serving an unbounded pool', async () => {
+    const alice = await activated('alice', 'p', { ask: 'x' })
+    // 51 pool members besides alice
+    for (let i = 0; i < 51; i++) {
+      await pg.query(
+        "insert into users (handle, token_hash) values ($1, $2)",
+        [`u${i}`, `h${i}`],
+      )
+      await pg.query(
+        "insert into profiles (user_id, body) select id, 'profile' from users where handle = $1",
+        [`u${i}`],
+      )
+    }
+    const res = await getPool(jsonReq('/api/pool', 'GET', undefined, alice.token))
+    expect(res.status).toBe(503)
+    expect(((await res.json()) as { error: string }).error).toBe('pool_unbounded')
+    const trip = await pg.query("select 1 from events where type = 'pool_size_tripwire'")
+    expect(trip.rows).toHaveLength(1)
+  })
+})

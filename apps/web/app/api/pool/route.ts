@@ -65,12 +65,22 @@ export async function GET(req: Request): Promise<Response> {
     [user.id],
   )
 
-  await logEvent({ type: 'pool_fetched', userId: user.id, metadata: { pool_size: rows.length } })
   // CTO tripwire (2026-07-10 ruling): whole-pool responses are load-bearing at
-  // seed scale but must not silently outgrow it — server-side bounding+ranking
-  // becomes mandatory past this size. One event per crossing fetch; metrics watch it.
+  // seed scale (N<50, per contract) but must not silently outgrow it. Warning
+  // event from 40; HARD FAIL past 50 — serving an unbounded pool at scale is a
+  // guarantee-3 hazard, so the endpoint refuses until bounding+ranking ship
+  // (a named contract-change gate, not a tuning knob).
+  if (rows.length > 50) {
+    await logEvent({ type: 'pool_size_tripwire', metadata: { pool_size: rows.length, hard_fail: true } })
+    console.error(`pool exceeds the whole-fetch contract threshold (${rows.length} cards) — bounding+ranking required`)
+    return Response.json(
+      { error: 'pool_unbounded', hint: 'The pool has outgrown whole-fetch serving. This is a deliberate stop, not an outage.' },
+      { status: 503 },
+    )
+  }
+  await logEvent({ type: 'pool_fetched', userId: user.id, metadata: { pool_size: rows.length } })
   if (rows.length >= 40) {
-    await logEvent({ type: 'pool_size_tripwire', metadata: { pool_size: rows.length } })
+    await logEvent({ type: 'pool_size_tripwire', metadata: { pool_size: rows.length, hard_fail: false } })
   }
   return Response.json({ pool: rows, generated_at: new Date().toISOString() })
 }
