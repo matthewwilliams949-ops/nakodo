@@ -2,7 +2,7 @@
 export default function Home() {
   return (
     <main>
-      <h1>
+      <h1 className="cursor">
         Your agent knows what you&apos;re building — and when an outside perspective would move it
         forward.
         <br />

@@ -1,169 +1,208 @@
+/* Nakodo — Direction B "the blackbox" (documentation/design/nakodo-design-system.md)
+   A quiet dark system in which the only bright thing that ever happens is an
+   introduction. Amber marks the introduction and the person it revealed — nothing else. */
+
 :root {
-  --fg: #1a1a1a;
-  --muted: #6b6b6b;
-  --bg: #fbfaf8;
-  --accent: #2f4f3e;
-  /* Amber appears EXCLUSIVELY at the moment of introduction — the revealed
-     name, and nothing else on any Nakodo surface (brand guide / §1). */
-  --amber: #e1a23c;
-  --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  --bg: #141311;        /* carbon */
+  --surface: #1e1c19;   /* panel */
+  --fg: #ede8de;        /* bone */
+  --muted: #8f8a80;     /* ash */
+  --line: #33302b;
+  --accent: #e1a23c;    /* amber — the introduction only */
+  --accent-ink: #241a08;
+  --mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+  --sans: var(--font-inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  --ease: cubic-bezier(0.22, 0.7, 0.3, 1);
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
+
+::selection { background: var(--fg); color: var(--bg); }
 
 body {
   margin: 0;
   color: var(--fg);
   background: var(--bg);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  line-height: 1.6;
+  font-family: var(--sans);
+  line-height: 1.65;
 }
 
-main {
+main { max-width: 40rem; margin: 0 auto; padding: 3rem 1.5rem 6rem; }
+
+.brand {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  color: var(--fg);
+  text-decoration: none;
+  display: block;
   max-width: 40rem;
   margin: 0 auto;
-  padding: 4rem 1.5rem 6rem;
+  padding: 1.5rem 1.5rem 0;
 }
 
-h1 {
-  font-size: 1.9rem;
-  line-height: 1.25;
+h1, h2 {
+  font-family: var(--mono);
+  font-weight: 500;
   letter-spacing: -0.01em;
 }
+h1 { font-size: 1.6rem; line-height: 1.4; }
+h2 { font-size: 0.95rem; margin-top: 2.75rem; }
 
-.muted {
-  color: var(--muted);
-}
+.muted { color: var(--muted); }
 
-code,
-pre {
+a { color: var(--fg); }
+
+code, pre {
   font-family: var(--mono);
   font-size: 0.9em;
-  background: #f0ede8;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 6px;
 }
-
-code {
-  padding: 0.1em 0.35em;
-}
-
-pre {
-  padding: 1rem;
-  overflow-x: auto;
-}
+code { padding: 0.1em 0.35em; }
+pre { padding: 1rem 1.25rem; overflow-x: auto; }
 
 ol.guarantees {
   padding-left: 1.2rem;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  line-height: 1.7;
 }
+ol.guarantees li { margin: 0.75rem 0; }
+ol.guarantees li::marker { color: var(--muted); }
 
-ol.guarantees li {
-  margin: 0.6rem 0;
-}
-
-.actions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
-}
-
-button {
-  font: inherit;
-  padding: 0.55rem 1.4rem;
-  border-radius: 8px;
-  border: 1px solid var(--accent);
-  cursor: pointer;
-}
-
-button.accept {
-  background: var(--accent);
-  color: #fff;
-}
-
-button.decline {
-  background: transparent;
-  color: var(--fg);
-  border-color: #c9c4bb;
-}
+/* ——— the anonymous card: the hero artifact ——— */
 
 .card {
-  border: 1px solid #e2ddd4;
-  background: #fff;
+  position: relative;
+  border: 1px solid var(--line);
+  background: var(--surface);
   border-radius: 10px;
   padding: 1.25rem 1.5rem;
   margin: 1.5rem 0;
 }
-
-/* The revealed name — the single amber element on the page (§1). */
-.reveal-name {
-  color: var(--amber);
+/* the amber edge — struck like a match when the card arrives (animation below) */
+.card::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  left: -1px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 10px 0 0 10px;
+  transform-origin: top;
 }
+.card.recap::before { background: var(--line); }
+.card.recap { color: var(--muted); }
 
-/* After the reveal the card shrinks to a recap: the thread is the primary
-   surface now (§4). */
-.recap-label {
-  font-size: 0.85rem;
-  margin-bottom: 0.4rem;
-}
+/* the revealed person — the only text amber in the product */
+.person { color: var(--accent); font-family: var(--mono); font-weight: 500; }
 
-.card.recap {
-  padding: 0.9rem 1.15rem;
-  margin-top: 0;
-  font-size: 0.92rem;
-  color: var(--muted);
-}
+.actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap; }
 
-.thread-empty {
-  margin: 1.5rem 0;
-}
-
-.thread {
-  margin: 1.5rem 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1.1rem;
-}
-
-.msg-meta {
-  margin: 0 0 0.15rem;
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-
-.msg-body {
-  margin: 0;
-  white-space: pre-wrap;
-}
-
-/* A textarea, not a single-line input: a single-line field reads as a form
-   field; a textarea reads as a message (§4.1). */
-.composer {
-  margin: 1.5rem 0 0.5rem;
-}
-
-.composer textarea {
-  width: 100%;
-  font: inherit;
-  padding: 0.7rem 0.85rem;
-  border: 1px solid #c9c4bb;
-  border-radius: 8px;
-  resize: vertical;
-  background: #fff;
+button {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  padding: 0.55rem 1.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--fg);
+  background: transparent;
   color: var(--fg);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, filter 120ms ease;
 }
+button:hover { background: var(--surface); }
+button:active { transform: translateY(1px); }
+button.accept { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button.accept:hover { background: var(--accent); filter: brightness(1.07); }
+button.decline { border-color: var(--muted); color: var(--muted); }
+
+/* ——— the thread: correspondence, not chat ——— */
+
+.thread { margin: 1.5rem 0; }
+.msg { border-top: 1px solid var(--line); padding: 0.75rem 0; }
+.msg-meta { font-family: var(--mono); font-size: 0.85rem; color: var(--muted); margin-bottom: 0.25rem; }
+.msg-meta .person { font-size: 0.85rem; }
+.thread-empty { color: var(--muted); font-style: italic; }
+
+textarea, input {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 1rem;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+}
+textarea { min-height: 6rem; resize: vertical; }
+textarea:focus, input:focus { border-color: var(--fg); outline: none; }
+textarea::placeholder, input::placeholder { color: var(--muted); }
 
 .chip {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid var(--muted);
   background: transparent;
-  border: 1px solid #c9c4bb;
-  border-radius: 999px;
-  padding: 0.35rem 0.85rem;
-  font-size: 0.85rem;
-  color: var(--fg);
-  margin-bottom: 0.6rem;
+  color: var(--muted);
+}
+.chip:hover { border-color: var(--fg); color: var(--fg); background: transparent; }
+
+:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+
+/* the terminal cursor — static glyph; blinks only when motion is welcome */
+.cursor::after {
+  content: '▍';
+  margin-left: 0.15em;
+  color: var(--muted);
 }
 
-.reassure {
-  font-size: 0.85rem;
-  margin-top: 1.5rem;
+/* ——— motion: rare, one-time, settles ———
+   Entrance choreography and the reveal moment only. All motion lives inside
+   this media block: the static page IS the finished page, and animation is
+   applied only for users who welcome it — reduced-motion users (and any
+   environment where animations don't run) get the identical final state. */
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes edge {
+    from { transform: scaleY(0); }
+  }
+  /* the phosphor glow: flares once when identities reveal, then settles */
+  @keyframes phosphor {
+    0% { opacity: 0; text-shadow: 0 0 0 rgba(225, 162, 60, 0); }
+    35% { opacity: 1; text-shadow: 0 0 26px rgba(225, 162, 60, 0.55); }
+    100% { opacity: 1; text-shadow: 0 0 0 rgba(225, 162, 60, 0); }
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+
+  main > * { animation: rise 0.55s var(--ease) both; }
+  main > *:nth-child(1) { animation-delay: 0.03s; }
+  main > *:nth-child(2) { animation-delay: 0.07s; }
+  main > *:nth-child(3) { animation-delay: 0.11s; }
+  main > *:nth-child(4) { animation-delay: 0.15s; }
+  main > *:nth-child(5) { animation-delay: 0.19s; }
+  main > *:nth-child(6) { animation-delay: 0.23s; }
+  main > *:nth-child(7) { animation-delay: 0.27s; }
+  main > *:nth-child(8) { animation-delay: 0.31s; }
+  main > *:nth-child(9) { animation-delay: 0.35s; }
+  main > *:nth-child(n + 10) { animation-delay: 0.39s; }
+
+  /* the amber edge is struck like a match */
+  .card::before { animation: edge 0.9s 0.3s var(--ease) both; }
+  .card.recap::before { animation: none; }
+
+  .glow { animation: phosphor 1.8s ease-out both; }
+  h1 .person { animation: phosphor 2.2s 0.2s ease-out both; }
+
+  /* the one thing allowed to keep moving */
+  .cursor::after { animation: blink 1.2s steps(2, jump-none) infinite; }
 }

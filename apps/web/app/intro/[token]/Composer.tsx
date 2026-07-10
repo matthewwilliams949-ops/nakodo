@@ -48,17 +48,17 @@ export function Composer({
   }
 
   return (
-    <form method="post" action={`/api/intro/${token}`} className="composer">
+    <form method="post" action={`/api/intro/${token}`} style={{ marginTop: '1.5rem' }}>
       {ownEmail ? (
-        <button type="button" className="chip" onClick={shareEmail}>
+        <button type="button" className="chip" onClick={shareEmail} style={{ marginBottom: '0.6rem' }}>
           Share the email I gave you
         </button>
       ) : null}
       <textarea ref={ref} name="message" maxLength={2000} rows={3} placeholder={placeholder} />
       <div className="actions">
-        <button className="accept" type="submit">
-          {sendLabel}
-        </button>
+        {/* Plain (not .accept/amber): reveal-handoff.md §1 reserves amber for the
+            revealed NAME — it must be the only amber element on this page. */}
+        <button type="submit">{sendLabel}</button>
       </div>
     </form>
   )

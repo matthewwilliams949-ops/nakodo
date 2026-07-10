@@ -68,21 +68,21 @@ export default async function IntroPage({ params }: { params: Promise<{ token: s
 
     return (
       <main>
-        <h1>
+        <h1 className={counterpartName ? undefined : 'glow'}>
           {counterpartName ? (
-            <>You both said yes — this is <span className="reveal-name">{counterpartName}</span>.</>
+            <>You both said yes — this is <span className="person">{counterpartName}</span>.</>
           ) : (
             <>You both said yes.</>
           )}
         </h1>
 
-        <p className="muted recap-label">The card you said yes to:</p>
+        <p className="muted">The card you said yes to:</p>
         <div className="card recap">
           <p>{card}</p>
         </div>
 
         {messages.length === 0 ? (
-          <p className="muted thread-empty">No messages yet. Someone goes first.</p>
+          <p className="thread-empty">No messages yet. Someone goes first.</p>
         ) : (
           <div className="thread">
             {messages.map((m) => {
@@ -90,12 +90,12 @@ export default async function IntroPage({ params }: { params: Promise<{ token: s
               return (
                 <div key={m.id} className="msg">
                   <p className="msg-meta">
-                    <strong className={mine ? undefined : 'reveal-name'}>
+                    <strong className={mine ? undefined : 'person'}>
                       {mine ? 'You' : (counterpartName ?? 'They')}
                     </strong>{' '}
                     · {formatDay(m.created_at)}
                   </p>
-                  <p className="msg-body">{m.body}</p>
+                  <p className="msg-body" style={{ margin: 0 }}>{m.body}</p>
                 </div>
               )
             })}
@@ -116,7 +116,7 @@ export default async function IntroPage({ params }: { params: Promise<{ token: s
 
         <Composer token={token} name={counterpartName} ownEmail={ownEmail} turn={turn} />
 
-        <p className="muted reassure">
+        <p className="muted">
           This thread is between you two — it never touches matching, and no one else ever sees it.
           Contact details are shared only if and when you write them yourself. This page doesn&apos;t
           expire.
