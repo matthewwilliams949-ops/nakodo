@@ -6,13 +6,20 @@
 
 **These are founder drafts, not legal advice.** Claude is not a lawyer. They are written to be accurate to Nakodo's actual data model and reasonably complete for a German-operated, GDPR-scoped launch — but **get them reviewed** (a data-protection-literate lawyer, or at minimum a reputable German Impressum/Datenschutz generator cross-check) before they go live. The Privacy Policy and Impressum are effectively required (GDPR Art. 13 + §5 DDG); the ToS is strongly recommended for a service that connects strangers.
 
-## Placeholders you must fill (search for `[[ ]]`)
+## Status (2026-07-11)
 
-- `[[LEGAL NAME]]` — your full legal name (Impressum requires it; a sole operator uses their own name until there's a company).
-- `[[STREET ADDRESS]]`, `[[POSTCODE CITY]]` — physical address. **German Impressum law requires a real, reachable postal address** (a c/o or business address is fine; a PO box alone is not sufficient). If you don't want your home address public, a common solution is a `c/o` service address — flag this and we'll decide.
-- `[[CONTACT EMAIL]]` — suggest `hello@nakodo.dev` (already live) or a dedicated `privacy@`/`legal@`.
-- `[[VAT ID]]` — only if you have a USt-IdNr.; delete the line if not.
-- `[[HOSTING REGION]]` / processor confirmations — I've filled these from the code (Vercel, Resend EU, Postgres EU) but **confirm each processor's actual data-processing region and that a DPA/AVV is in place** before relying on the "data stays in the EU" claim publicly.
+All `[[ ]]` placeholders are **filled**: Matthew Williams / Esmarchstraße 15, 10407 Berlin / hello@nakodo.dev; no VAT ID (no legal entity yet — line removed); date 2026-07-11. Two items below still need Matthew's action before these go live.
+
+## ⚠️ Open items before publishing
+
+1. **`hello@nakodo.dev` must actually receive mail.** It's live as the *sending* address (Resend, `EMAIL_FROM`), but an Impressum/privacy contact address has to be **reachable**. Per `SETUP-ACCOUNTS.md` this needs Porkbun email forwarding to your Gmail (~2 min). Confirm it's on, or a legal contact address that bounces is itself a compliance gap.
+
+2. **🚩 DB region vs. the site's public claim — a real trust-accuracy bug.** The homepage ([apps/web/app/page.tsx:65](../../apps/web/app/page.tsx)) states *"Data lives in the EU (Frankfurt)."* The actual Supabase database is on `aws-1-eu-west-2` = AWS **London (UK)** — not Frankfurt, not the EU. This is a false, load-bearing claim on a trust-first product's landing page; a technical reader who checks will catch it. **Decide one:**
+   - **Move the DB to Frankfurt (`eu-central-1`)** so the claim becomes true. Best done *now* — there's ~1 row of real data, so migration cost is near-zero, and the launch sweep zeros even that. (CTO task: Supabase can't relocate a project in place — recreate in eu-central-1, swap `DATABASE_URL`, `pnpm db:apply`.) *Recommended.*
+   - **Or** soften the site copy to match reality (UK is GDPR-adequate, but "Frankfurt/EU" is a stronger story than "London/UK").
+   The privacy policy's processor line is written to the Frankfurt target and carries an inline ⚠ until this is resolved.
+
+3. **Processor DPAs** — Vercel and Resend are US-incorporated; confirm you've accepted their DPAs with SCCs (both offer them). Supabase EU region + DPA likewise.
 
 ## Wiring them into the site (after review)
 

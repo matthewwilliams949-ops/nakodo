@@ -1,12 +1,12 @@
 # Privacy Policy
 
-*Last updated: [[DATE]] · Controller: [[LEGAL NAME]], [[STREET ADDRESS]], [[POSTCODE CITY]], Germany · Contact: [[CONTACT EMAIL]]*
+*Last updated: 2026-07-11 · Controller: Matthew Williams, Esmarchstraße 15, 10407 Berlin, Germany · Contact: hello@nakodo.dev*
 
 Nakodo is built so that your identity is never the product. This policy explains, in plain terms, exactly what we hold, why, and the control you have over it. It is written to meet our obligations under the EU General Data Protection Regulation (GDPR) and German data-protection law.
 
 ## 1. Who is responsible
 
-The data controller is **[[LEGAL NAME]]** ("we", "us"), contactable at **[[CONTACT EMAIL]]**. Full postal details are in our [Impressum](/impressum).
+The data controller is **Matthew Williams** ("we", "us"), contactable at **hello@nakodo.dev**. Full postal details are in our [Impressum](/impressum).
 
 ## 2. The short version
 
@@ -38,23 +38,23 @@ While Nakodo is small, a human (the operator named above) reviews and approves e
 
 ## 5. Automated processing
 
-Matching is performed by *your own* AI agent over a pool of identity-free profiles; it proposes introductions, which a human approves. This does not produce legal or similarly significant effects about you within the meaning of Art. 22 GDPR — the only output is an introduction you are free to accept or decline, and a decline is invisible in both directions. You can always reach a human at [[CONTACT EMAIL]].
+Matching is performed by *your own* AI agent over a pool of identity-free profiles; it proposes introductions, which a human approves. This does not produce legal or similarly significant effects about you within the meaning of Art. 22 GDPR — the only output is an introduction you are free to accept or decline, and a decline is invisible in both directions. You can always reach a human at hello@nakodo.dev.
 
 ## 6. Who processes data on our behalf
 
 We use a small number of processors, each under a data-processing agreement, chosen to keep data in the EU where possible:
 
 - **Vercel** — website and application hosting.
-- **Neon / [[POSTGRES PROVIDER]]** — the database, configured in the EU region.
+- **Supabase** — the database, hosted on AWS in the **Europe (Frankfurt) region**. ⚠️ *See region flag below — this line must match reality before publishing.*
 - **Resend** — sending notification emails, configured in the EU region.
 
-*(Matthew: confirm each processor's region and that an AVV/DPA is signed before publishing. If any processor is US-based, we must disclose the transfer mechanism — e.g. EU Standard Contractual Clauses / the EU–US Data Privacy Framework — in this section.)*
+*(Matthew: confirm each processor's region and that an AVV/DPA is signed before publishing. Vercel and Resend are US-incorporated — a US-based processor with EU-region data must be covered by EU Standard Contractual Clauses and/or the EU–US Data Privacy Framework; both offer these under their DPAs, but confirm you've accepted them.)*
 
 We do **not** sell your data, and we do not share it with advertisers or data brokers. Ever.
 
 ## 7. International transfers
 
-We aim to keep all personal data within the EU/EEA. Where a processor transfers data outside the EEA, it is done under an approved safeguard (EU Standard Contractual Clauses or an adequacy decision). Details available on request at [[CONTACT EMAIL]].
+We aim to keep all personal data within the EU/EEA. Where a processor transfers data outside the EEA, it is done under an approved safeguard (EU Standard Contractual Clauses or an adequacy decision). Details available on request at hello@nakodo.dev.
 
 ## 8. How long we keep it
 
@@ -62,7 +62,7 @@ We keep your data for as long as you have an active record with us. When you del
 
 ## 9. Your rights
 
-Under the GDPR you have the right to: access your data; correct it; delete it; restrict or object to processing; data portability; and to withdraw consent at any time (which does not affect prior processing). Most of these you can exercise instantly through your agent ("show me my record", "delete me"); for anything else, write to **[[CONTACT EMAIL]]** and we will respond within one month.
+Under the GDPR you have the right to: access your data; correct it; delete it; restrict or object to processing; data portability; and to withdraw consent at any time (which does not affect prior processing). Most of these you can exercise instantly through your agent ("show me my record", "delete me"); for anything else, write to **hello@nakodo.dev** and we will respond within one month.
 
 You also have the right to lodge a complaint with a supervisory authority. For us that is the **Berlin Commissioner for Data Protection and Freedom of Information (Berliner Beauftragte für Datenschutz und Informationsfreiheit)** — https://www.datenschutz-berlin.de.
 

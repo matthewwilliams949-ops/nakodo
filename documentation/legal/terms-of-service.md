@@ -1,6 +1,6 @@
 # Terms of Service
 
-*Last updated: [[DATE]] · Operated by [[LEGAL NAME]] ([Impressum](/impressum)) · Questions: [[CONTACT EMAIL]]*
+*Last updated: 2026-07-11 · Operated by Matthew Williams ([Impressum](/impressum)) · Questions: hello@nakodo.dev*
 
 These terms govern your use of Nakodo (the "Service") — an MCP server and website at nakodo.dev that lets your AI agent maintain a work profile, and that proposes introductions between people whose work is a mutual fit. By using the Service you agree to these terms. If you don't agree, please don't use it.
 
@@ -31,7 +31,7 @@ The introduction thread is a private channel between two people. Treat what's sh
 
 ## 5. Enforcement
 
-We may remove content, decline to propose introductions, suspend, or permanently remove any user who breaks these terms or puts others at risk — where practical with notice, and immediately where necessary to protect people. If someone behaves abusively toward you, tell us at **[[CONTACT EMAIL]]**.
+We may remove content, decline to propose introductions, suspend, or permanently remove any user who breaks these terms or puts others at risk — where practical with notice, and immediately where necessary to protect people. If someone behaves abusively toward you, tell us at **hello@nakodo.dev**.
 
 ## 6. Availability
 
@@ -47,7 +47,7 @@ These terms are governed by the laws of the Federal Republic of Germany, excludi
 
 ## 9. Contact
 
-Questions about these terms: **[[CONTACT EMAIL]]**. How we handle your data: see our [Privacy Policy](/privacy).
+Questions about these terms: **hello@nakodo.dev**. How we handle your data: see our [Privacy Policy](/privacy).
 
 ---
 
