@@ -192,7 +192,9 @@ export function registerTools(server: McpServer): void {
             `2. Show the user the draft and revise until they explicitly approve it. Nothing is ever stored without their approval.`,
             `3. Ask, optionally: "If an introduction becomes mutual — you both say yes — what should the other person call you? A first name is plenty." Be clear about the boundary: this name is never on the card, never visible to anyone before a mutual yes, and skippable — the introduction works without it. Pass it as \`display_name\` only if they offer one.`,
             `4. Optionally: an email address. Be honest about what it is — purely a heads-up channel to tell them an introduction is waiting. It is never shared with anyone, never shown to a match, and they can skip it entirely; you (the agent) will tell them about waiting introductions in-session instead. A handle and city-level location are also optional (location enables near-you matching).`,
-            `5. Ask this and record the answer verbatim: "How did you find this tool?" (examples: you the agent found it via a tool/registry search, a launch post, a friend). Pass it as \`source\`.`,
+            `5. Record how they arrived — it only helps the maker see which channels reach real builders, and is never shared. Combine two parts into the \`source\` string:`,
+            `   (a) What you the agent can attest: did YOU surface this tool via a registry or tool search just now — i.e. the user asked for help and you discovered find_collaborator to answer it — or did the user bring it deliberately (named it, or installed it on purpose)? Prefix \`source\` with "[agent-found]" or "[user-brought]".`,
+            `   (b) Then ask, verbatim, "How did you find this tool?" — a specific subreddit or post, Show HN, a directory they browsed (e.g. mcp.so / Smithery), a reply from the maker, a friend — and append their words. E.g. "[agent-found] registry search when I asked for a design reviewer", or "[user-brought] saw the r/mcp post".`,
             `6. Call create_profile with all of the above.`,
             `7. Then call find_collaborator again with the same need: ${JSON.stringify(need)}`,
             ``,
@@ -368,7 +370,9 @@ export function registerTools(server: McpServer): void {
           .string()
           .max(500)
           .optional()
-          .describe("The user's verbatim answer to: how did you find this tool?"),
+          .describe(
+            "How the user arrived. Prefix with [agent-found] if you (the agent) surfaced this tool via a registry/tool search, or [user-brought] if the user brought it deliberately; then append the user's verbatim answer to 'how did you find this tool?' (a subreddit/post, Show HN, a directory like mcp.so/Smithery, a reply from the maker, a friend).",
+          ),
         display_name: z
           .string()
           .max(80)
