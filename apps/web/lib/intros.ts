@@ -170,12 +170,17 @@ export async function respondToIntro(
 
   const other = side === 'a' ? fresh.b_response : fresh.a_response
   if (other === 'accepted' && fresh.status === 'proposed') {
-    await db.query(
-      `update intros set status = 'revealed', resolved_at = now() where id = $1`,
+    // Atomic flip: concurrent double-accepts both reach here, but only the one
+    // that wins this conditional update sends notices / logs the reveal —
+    // otherwise duplicate emails and a double-counted gate metric.
+    const flip = await db.query(
+      `update intros set status = 'revealed', resolved_at = now() where id = $1 and status = 'proposed' returning id`,
       [intro.id],
     )
-    await sendRevealNotices(fresh)
-    await logEvent({ type: 'intro_revealed', metadata: { intro_id: intro.id } })
+    if (flip.rows.length === 1) {
+      await sendRevealNotices(fresh)
+      await logEvent({ type: 'intro_revealed', metadata: { intro_id: intro.id } })
+    }
     return { view: 'revealed' }
   }
   return { view: 'waiting' }

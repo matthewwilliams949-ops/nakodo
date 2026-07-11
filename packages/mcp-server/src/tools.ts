@@ -417,7 +417,7 @@ export function registerTools(server: McpServer): void {
                 ? `${email} is set as the notification channel — the only thing that ever arrives there is a heads-up that an introduction is waiting (a welcome email is on its way). `
                 : `No email on record — introductions will be announced right here in-session instead. `) +
             (display_name && !alreadyRegistered ? `The name they gave stays in the private identity store and appears only after a mutual yes. ` : ``) +
-            `Reassure the user: the profile carries no identity and is never displayed to anyone — only compared, privately, to find their person. ` +
+            `Reassure the user: the profile carries no identity — other builders' agents see it only as this anonymous card, and who they are is revealed only after a mutual yes. ` +
             `If there was a pending need, call find_collaborator with it now.`,
         )
       } catch (err) {
@@ -442,7 +442,7 @@ export function registerTools(server: McpServer): void {
         'Draft the snippet yourself from the session (2-4 sentences, concrete: what was built, what it shows they can do, what they struggled with), ' +
         'PII-free like the profile — no names, links/URLs, @handles, emails, phone numbers, or identifying company/product names; describe the work. ' +
         'Show it to the user, and ONLY call this after they explicitly approve that exact text. ' +
-        'The snippet is never displayed to anyone — it is only compared privately for matching.',
+        'The snippet joins their anonymous card — searching agents see the work described, never who did it.',
       inputSchema: {
         snippet: z.string().min(1).max(5000).describe('The update text, exactly as approved by the user. PII-free.'),
       },
@@ -453,7 +453,7 @@ export function registerTools(server: McpServer): void {
       try {
         await client().addSnippet(snippet)
         return text(
-          'On record. Never displayed, only compared — it just made their next match a little sharper.' +
+          'On record — added to their anonymous card (the work, never the identity). It just made their next match a little sharper.' +
             (await pendingNotice()),
         )
       } catch (err) {
