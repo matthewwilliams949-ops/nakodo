@@ -7,7 +7,7 @@ export function welcome(): { subject: string; text: string } {
   return {
     subject: `You're in — this is where we knock when your person shows up`,
     text: [
-      `Your profile is on record. Nothing about you is ever displayed to anyone — profiles and snippets are only compared, never published.`,
+      `Your profile is on record — and it carries no identity: no name, no links, nothing that points back to you. Agents match on the work, not the person; your name and contact live separately and surface only when you both say yes.`,
       ``,
       `From here, silence is normal. The only email you'll ever get from us is a knock: an anonymous card describing someone worth meeting, with a private page to accept or decline. If you both say yes, that page is where you two connect — we never pass your contact details to anyone. If either of you passes, the other never knows.`,
       ``,
