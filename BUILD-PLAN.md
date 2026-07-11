@@ -144,7 +144,27 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - [ ] Motion 1: seed DM copy + target list (20–30 expressed-pain posts: Indie Hackers, r/SideProject, builder Discords)
 - [ ] Motion 2: Show HN, r/ClaudeAI, r/mcp, X, Product Hunt drafts around the postable line
 - [ ] Directory submissions fired; repo public
+- [ ] **Launch morning, right before post #1: baseline zero** — `pnpm sweep` (dry run, eyeball the survivor list) then `pnpm sweep --execute` (CEO ruling 2026-07-11: `test-bo` + ALL intros + zero events go; Matthew's real profile stays — user #1, first card in the pool). Dry-run verified against prod 2026-07-11: 1 persona, 2 intros + 1 message, 17 events, sole survivor Matthew. Distribution owns the timing; then `pnpm metrics` to confirm the clean slate
 - **Done when:** Matthew has approved copy, seed DMs are going out, and the metrics script is tracking the gate.
+
+### M9 — post-launch roadmap *(scoped in documentation/roadmap-post-m8.md — CEO priority order; NOTHING here ships before launch Day 1 completes; launch-day user-reported issues outrank everything)*
+
+**M9-0 + M9a = 0.2.1, target ≤48h after launch Day 1** *(lanes: Trust & Platform `m9/feedback` @ `be74fd1` + Agent Interface `m9/agent-0.2.1` @ `d025163` — both BUILT and frozen)*
+- [x] CTO trust-override review (2026-07-11): guarantee-1 approval law enforced tool-side (`approved=true` required, refuses otherwise) AND regression-pinned (protocol test: `share_feedback` can never file un-approved text); server write-only/internal-only, `delete_me` cascades, instruction-lint, body never enters events. **Passes — do not re-review.**
+- [x] Combined-merge dry run (2026-07-11, CTO): main + both branches assembles clean — one trivial `package.json` script-line conflict (keep both `e2e` + `feedback` lines), `m9/agent-0.2.1` zero-conflict; product code byte-identical to main except the new `apps/web/app/api/feedback/route.ts`
+- [ ] **Pre-merge blocker: web-suite test-isolation fix** — merged tree fails `api.test.ts:453` ("message email fires once per ball-crossing", expects 1 email gets 2) via cross-file state leakage; green alone, red in full run. Latent on main, surfaced by the added feedback tests. Routed to Trust & Platform 2026-07-11
+- [ ] Ship (CTO, merge train): merge both branches → bump 0.2.1 → `pnpm check` green on merged tree → prod migrate (`feedback` table) → deploy → prod e2e: `share_feedback` round-trip incl. approval-gate refusal + `pnpm feedback` digest shows the row → clean test rows
+- [ ] **npm publish 0.2.1 — needs Matthew (security key).** Flag on the roadmap's "propagates automatically, no user action": true for *users* (`npx -y` picks up latest on their next session), but `share_feedback` + the M9a guidance live in the npm package, so a publish IS required before any agent has the tool. Batch with the first post-launch fix window
+- **Done when:** a real user's agent can file approved feedback against prod, the digest shows it, and nothing un-approved can ever land — verified against prod.
+
+**M9b — rematches / the circle** *(1–2 days · Trust & Platform + Agent Interface · retention backbone — build next after 0.2.1)*
+- [ ] Spec first: `documentation/agent-rematches-m9b.md` (CTO drafting) — prior_connection marker only for previously-revealed pairs, reconnect reopens existing thread (no new double-opt-in between revealed people), declining stays invisible, `rematch_proposed`/`rematch_reconnected` events
+- [ ] Build per spec once 0.2.1 ships
+
+**M9c — authed `/inbox`** *(2–3 days · Trust & Platform + Product · GATED on Design's `documentation/design/inbox-surface.md` — not landed; auth-seam co-spec already closed between Trust and Product)*
+- [ ] Ungated by CTO only after Design's brief lands and 0.2.1 is out
+
+**Parked pending gates:** verification/LinkedIn (boolean-only in pool when built), algorithmic matching, remote MCP, monetization, multi-project profiles.
 
 ---
 
