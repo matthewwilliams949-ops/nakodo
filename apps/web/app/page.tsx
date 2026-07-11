@@ -1,4 +1,7 @@
 // M5 rule: one-liner, five guarantees, install, privacy note — nothing else.
+// Site pass 2026-07-11 (documentation/design/site-pass.md): a builder arriving
+// from a launch post already has the pitch — install is the 60-second job, so
+// it comes first; the guarantees close the trust; depth reads last.
 export default function Home() {
   return (
     <main>
@@ -13,18 +16,12 @@ export default function Home() {
         Honest feedback today, a collaborator tomorrow, maybe your co-founder.
       </p>
 
-      <h2>How it works</h2>
+      <h2>Install</h2>
+      <pre>{`claude mcp add nakodo -- npx -y nakodo`}</pre>
       <p className="muted">
-        <em>Nakōdo (仲人): the traditional Japanese matchmaker — the discreet go-between who knows
-        both sides, and only speaks when there&apos;s a real match.</em>
-      </p>
-      <p>
-        Install the MCP server. Your agent quietly keeps a record of what you&apos;re building —
-        every snippet approved by you first. When you need someone (design, code, marketing, a
-        co-founder), ask your agent. We compare records privately and, when there&apos;s a real
-        match, your agent knocks: an anonymous card describing a person worth meeting, on a private
-        page. You both say yes, or nothing happens — and even after a yes, contact details are
-        exchanged only by the two of you. We never pass them along.
+        Works with Claude Code, Cursor, and any MCP-capable agent (stdio command:{' '}
+        <code>npx -y nakodo</code>). Then just ask:{' '}
+        <em>&quot;find me someone who can help with design.&quot;</em>
       </p>
 
       <h2>Five guarantees</h2>
@@ -49,12 +46,19 @@ export default function Home() {
         </li>
       </ol>
 
-      <h2>Install</h2>
-      <pre>{`claude mcp add nakodo -- npx -y nakodo`}</pre>
+      <h2>How it works</h2>
       <p className="muted">
-        Works with Claude Code, Cursor, and any MCP-capable agent (stdio command:{' '}
-        <code>npx -y nakodo</code>). Then just ask:{' '}
-        <em>&quot;find me someone who can help with design.&quot;</em>
+        <em>Nakōdo (仲人): the traditional Japanese matchmaker — the discreet go-between who knows
+        both sides, and only speaks when there&apos;s a real match.</em>
+      </p>
+      <p>
+        Your agent quietly keeps a record of what you&apos;re building — every snippet approved by
+        you first. When you need someone (design, code, marketing, a co-founder), ask it: your agent
+        searches a pool of profiles that carry no identity and proposes the introduction, and a
+        human reviews every proposal before it reaches anyone. What arrives is an anonymous card
+        describing a person worth meeting, on a private page. You both say yes, or nothing happens.
+        After a yes, the card becomes a person — the name they chose to be called, and a private
+        thread where you two take it from there. Nothing is ever sent on your behalf.
       </p>
 
       <p className="muted">
