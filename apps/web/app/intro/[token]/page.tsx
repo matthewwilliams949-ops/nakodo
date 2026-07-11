@@ -1,4 +1,7 @@
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { findIntroByToken, getIntroMessages, getRevealParties, threadTurn, viewFor } from '../../../lib/intros'
+import { introBelongsTo, sessionUser } from '../../../lib/session'
 import { Composer } from './Composer'
 
 export const dynamic = 'force-dynamic'
@@ -14,8 +17,27 @@ function formatDay(d: string | Date): string {
 // the other party is indistinguishable from waiting (trust rule 4). After a
 // mutual yes it becomes the handoff: it must make obvious that a PERSON, not
 // the platform, is now on the other side (reveal-handoff.md §1).
-export default async function IntroPage({ params }: { params: Promise<{ token: string }> }) {
+export default async function IntroPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>
+  searchParams: Promise<{ from?: string }>
+}) {
   const { token } = await params
+  const { from } = await searchParams
+
+  // M9c: a signed-in owner arriving via an external (email) link lands in their
+  // inbox instead of a bare intro page (design brief §4). The intro token NEVER
+  // mints a session (sessionUser reads only the session cookie), so a forwarded
+  // link grants nothing — this is pure UX consolidation. `from=inbox` is the
+  // in-app marker the /inbox rows carry: without it we'd bounce inbox→intro→
+  // inbox forever, since the inbox links here as the acting surface (§2.1).
+  if (from !== 'inbox') {
+    const me = await sessionUser(await cookies())
+    if (me && (await introBelongsTo(token, me.id))) redirect('/inbox')
+  }
+
   const found = await findIntroByToken(token)
 
   if (!found) {

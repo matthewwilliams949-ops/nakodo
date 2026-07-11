@@ -206,3 +206,15 @@ textarea::placeholder, input::placeholder { color: var(--muted); }
   /* the one thing allowed to keep moving */
   .cursor::after { animation: blink 1.2s steps(2, jump-none) infinite; }
 }
+
+/* ——— M9c /inbox — the desk (documentation/design/inbox-surface.md) ——— */
+/* Reuses .card / .msg / .msg-meta / .person; adds only the label, zone rules,
+   and the list-row link wrapper. No card grid, no new component grammar. */
+.inbox-label { font-family: var(--mono); font-size: 0.85rem; color: var(--muted); margin: 0 0 1.5rem; }
+
+.zone { border-top: 1px solid var(--line); margin-top: 1.75rem; padding-top: 1.5rem; }
+.zone:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+.zone h2 { margin-top: 0; }
+
+.row-link { display: block; text-decoration: none; color: inherit; }
+.row-link:hover .msg { border-color: var(--muted); }
