@@ -158,7 +158,7 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - **Done when:** a real user's agent can file approved feedback against prod, the digest shows it, and nothing un-approved can ever land — verified against prod.
 
 **M9b — rematches / the circle** *(1–2 days · Trust & Platform + Agent Interface · retention backbone — build next after 0.2.1)*
-- [ ] Spec first: `documentation/agent-rematches-m9b.md` (CTO drafting) — prior_connection marker only for previously-revealed pairs, reconnect reopens existing thread (no new double-opt-in between revealed people), declining stays invisible, `rematch_proposed`/`rematch_reconnected` events
+- [x] Spec landed (CTO, 2026-07-11): `documentation/agent-rematches-m9b.md` — prior_connection only for previously-revealed pairs; reconnect rides the EXISTING thread (no new write path, no proposal object → declining invisible by construction); pool zero-identity pin intact (own-token reconnect_url, never a name); `rematch_proposed`/`rematch_reconnected` events; lanes Trust+AIE, contract-first per M8 pattern
 - [ ] Build per spec once 0.2.1 ships
 
 **M9c — authed `/inbox`** *(2–3 days · Trust & Platform + Product · GATED on Design's `documentation/design/inbox-surface.md` — not landed; auth-seam co-spec already closed between Trust and Product)*
