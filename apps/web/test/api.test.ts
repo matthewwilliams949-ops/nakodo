@@ -1050,3 +1050,120 @@ describe('pool size tripwire (CTO gate)', () => {
     expect(trip.rows).toHaveLength(1)
   })
 })
+
+describe('M9b — prior-connection pool marking + reconnect attribution', () => {
+  // alice ↔ bob share a REVEALED intro; carol is a stranger to both.
+  async function circle() {
+    const alice = await activated('alice', 'agent-memory tool, three weeks in', { email: 'alice@example.com', ask: 'eval help' })
+    const bob = await activated('bobhandle77', 'builds eval harnesses', {
+      email: 'bob.secret@example.com',
+      extra: { display_name: 'Robert Realname', location: 'Hamburg-Altona' },
+    })
+    const carol = await activated('carol', 'design systems', { email: 'carol@example.com', ask: 'feedback' })
+    await createIntro({ userA: 'alice', userB: 'bobhandle77', cardA: 'about bob', cardB: 'about alice' })
+    const row = (await pg.query<{ id: string; token_a: string; token_b: string }>('select id, token_a, token_b from intros')).rows[0]!
+    for (const token of [row.token_a, row.token_b]) {
+      await respondIntro(jsonReq(`/api/intro/${token}`, 'POST', { response: 'accepted' }), {
+        params: Promise.resolve({ token }),
+      })
+    }
+    return { alice, bob, carol, tokenA: row.token_a, tokenB: row.token_b, introId: row.id }
+  }
+
+  async function poolFor(token: string) {
+    const res = await getPool(jsonReq('/api/pool', 'GET', undefined, token))
+    expect(res.status).toBe(200)
+    return ((await res.json()) as { pool: Record<string, unknown>[] }).pool
+  }
+
+  it('REGRESSION PIN EXTENSION: a prior-connection card adds EXACTLY prior_connection + own-token reconnect_url, still zero identity', async () => {
+    const { alice, bob, tokenA, tokenB } = await circle()
+
+    const pool = await poolFor(alice.token)
+    const bobCard = pool.find((c) => c.profile === 'builds eval harnesses')!
+    expect(Object.keys(bobCard).sort()).toEqual(['card_id', 'prior_connection', 'profile', 'reconnect_url', 'snippets'])
+    expect(bobCard.prior_connection).toBe(true)
+    // the URL carries the REQUESTER's own token — never the counterpart's
+    expect(bobCard.reconnect_url).toContain(tokenA)
+    expect(JSON.stringify(bobCard)).not.toContain(tokenB)
+    // and still zero identity, sentinel-checked
+    const text = JSON.stringify(pool)
+    for (const sentinel of ['bob.secret', 'bobhandle77', 'Robert Realname', 'Hamburg-Altona', bob.userId, alice.userId]) {
+      expect(text, `prior-connection pool leaked ${sentinel}`).not.toContain(sentinel)
+    }
+    // stranger card in the same response stays byte-identical to M8
+    const carolCard = pool.find((c) => c.profile === 'design systems')!
+    expect(Object.keys(carolCard).sort()).toEqual(['card_id', 'profile', 'snippets'])
+  })
+
+  it('to a stranger, nothing marks: carol sees bob without prior-connection fields', async () => {
+    const { carol } = await circle()
+    const pool = await poolFor(carol.token)
+    for (const card of pool) {
+      expect(Object.keys(card).sort()).toEqual(['card_id', 'profile', 'snippets'])
+    }
+  })
+
+  it('GUARANTEE-4 PIN: anything less than revealed never marks', async () => {
+    const alice = await activated('alice', 'p1', { ask: 'x' })
+    await activated('dave', 'p2')
+    // proposed (one side accepted) intro between alice and dave
+    await createIntro({ userA: 'alice', userB: 'dave', cardA: 'c', cardB: 'c' })
+    const tokA = (await pg.query<{ token_a: string }>('select token_a from intros')).rows[0]!.token_a
+    await respondIntro(jsonReq(`/api/intro/${tokA}`, 'POST', { response: 'accepted' }), {
+      params: Promise.resolve({ token: tokA }),
+    })
+    for (const status of ['proposed', 'held', 'vetoed', 'declined']) {
+      await pg.query('update intros set status = $1', [status])
+      const pool = await poolFor(alice.token)
+      const dave = pool.find((c) => c.profile === 'p2')!
+      expect(Object.keys(dave).sort(), `status ${status} must not mark`).toEqual(['card_id', 'profile', 'snippets'])
+    }
+  })
+
+  it('a deleted counterpart stops marking (guarantee 5, no new code)', async () => {
+    const { alice, bob } = await circle()
+    await deleteMe(jsonReq('/api/me', 'DELETE', undefined, bob.token))
+    // bob's profile is gone entirely (cascade), and nothing else marks for alice
+    const pool = await poolFor(alice.token)
+    for (const card of pool) {
+      expect(Object.keys(card).sort()).toEqual(['card_id', 'profile', 'snippets'])
+    }
+  })
+
+  it('reconnect: message with own open ask_id posts and fires rematch_reconnected', async () => {
+    const { alice, tokenA, introId } = await circle()
+    const res = await respondIntro(
+      jsonReq(`/api/intro/${tokenA}`, 'POST', { message: 'new ask — can I pick your brain?', ask_id: alice.askId }),
+      { params: Promise.resolve({ token: tokenA }) },
+    )
+    expect(res.status).toBe(200)
+    const ev = await pg.query<{ metadata: { intro_id: string; ask_id: string } }>(
+      "select metadata from events where type = 'rematch_reconnected'",
+    )
+    expect(ev.rows).toHaveLength(1)
+    expect(ev.rows[0]!.metadata).toMatchObject({ intro_id: introId, ask_id: alice.askId })
+    expect((await pg.query('select * from intro_messages')).rows).toHaveLength(1)
+  })
+
+  it('reconnect attribution is loud on a bad ask: foreign, closed, or unknown ask_id → 400, nothing posts', async () => {
+    const { alice, carol, tokenA } = await circle()
+    await pg.query("update asks set status = 'closed' where user_id = (select id from users where handle = 'alice')")
+    for (const askId of [carol.askId, alice.askId, '00000000-0000-0000-0000-000000000099']) {
+      const res = await respondIntro(jsonReq(`/api/intro/${tokenA}`, 'POST', { message: 'hi', ask_id: askId }), {
+        params: Promise.resolve({ token: tokenA }),
+      })
+      expect(res.status).toBe(400)
+    }
+    expect((await pg.query('select * from intro_messages')).rows).toHaveLength(0)
+    expect((await pg.query("select * from events where type = 'rematch_reconnected'")).rows).toHaveLength(0)
+  })
+
+  it('a plain message (no ask_id) never fires the rematch event', async () => {
+    const { tokenA } = await circle()
+    await respondIntro(jsonReq(`/api/intro/${tokenA}`, 'POST', { message: 'just saying hello' }), {
+      params: Promise.resolve({ token: tokenA }),
+    })
+    expect((await pg.query("select * from events where type = 'rematch_reconnected'")).rows).toHaveLength(0)
+  })
+})

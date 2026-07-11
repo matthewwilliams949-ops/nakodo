@@ -107,6 +107,27 @@ const founderIntros = founderId
     )
   : 0
 
+// M9b CIRCLE line: the retention backbone — rematches proposed by agents
+// (client_rematch_proposed: fired via /api/events, hence the client_ prefix)
+// vs. reconnects that actually landed in an old thread (rematch_reconnected,
+// server-fired in the message path). Founder exclusion, same rule as gate 4.
+const circleCount = async (type: string): Promise<number> =>
+  Number(
+    (
+      await db.query(
+        `select count(*) n from events e
+         where e.type = $1
+           ${founderId ? `and not exists (
+             select 1 from intros i
+             where i.id::text = e.metadata->>'intro_id'
+               and (i.user_a = $2 or i.user_b = $2))` : ''}`,
+        founderId ? [type, founderId] : [type],
+      )
+    ).rows[0]?.n ?? 0,
+  )
+const rematchesProposed = await circleCount('client_rematch_proposed')
+const rematchesReconnected = await circleCount('rematch_reconnected')
+
 const bySource = (
   await db.query<{ source: string | null; n: string }>(
     'select source, count(*) n from users group by source order by n desc',
@@ -136,6 +157,7 @@ console.log(`INTROS      proposed (delivered): ${introsProposed} · accepted —
   (introsHeld > 0 ? ` · ${introsHeld} held awaiting review` : ''))
 console.log(`EXCHANGE    real exchanges (peer-to-peer, both sides messaged): ${exchanges}` +
   (founderId ? `  ·  founder-welcome (excluded from gate): ${founderIntros} intros, ${founderExchanges} exchanges` : ''))
+console.log(`CIRCLE      rematches proposed: ${rematchesProposed} · reconnected (message landed in an old thread): ${rematchesReconnected}`)
 console.log(`\nAttribution (users.source):`)
 for (const r of bySource) console.log(`  ${r.source ?? '(none)'}: ${r.n}`)
 if (bySource.length === 0) console.log('  (no users yet)')
