@@ -95,6 +95,17 @@ const exchanges = founderId
   ? await exchangeCount(false)
   : await one("select count(*) n from events where type = 'thread_connected'")
 const founderExchanges = founderId ? await exchangeCount(true) : 0
+// Founder-welcome intro count — the CEO's "own line" ask covers intros too.
+const founderIntros = founderId
+  ? Number(
+      (
+        await db.query(
+          "select count(*) n from intros where (user_a = $1 or user_b = $1) and status not in ('held', 'vetoed')",
+          [founderId],
+        )
+      ).rows[0]?.n ?? 0,
+    )
+  : 0
 
 const bySource = (
   await db.query<{ source: string | null; n: string }>(
@@ -124,7 +135,7 @@ console.log(`            snippets: ${snippets} · open asks: ${openAsks}`)
 console.log(`INTROS      proposed (delivered): ${introsProposed} · accepted — both said yes (revealed): ${introsAccepted} (${pct(introsAccepted, introsProposed)} of proposed)` +
   (introsHeld > 0 ? ` · ${introsHeld} held awaiting review` : ''))
 console.log(`EXCHANGE    real exchanges (peer-to-peer, both sides messaged): ${exchanges}` +
-  (founderId ? `  ·  founder-welcome exchanges (excluded from gate): ${founderExchanges}` : ''))
+  (founderId ? `  ·  founder-welcome (excluded from gate): ${founderIntros} intros, ${founderExchanges} exchanges` : ''))
 console.log(`\nAttribution (users.source):`)
 for (const r of bySource) console.log(`  ${r.source ?? '(none)'}: ${r.n}`)
 if (bySource.length === 0) console.log('  (no users yet)')
