@@ -58,6 +58,7 @@ describe('nakodo over stdio', () => {
       'find_collaborator',
       'my_record',
       'propose_intro',
+      'reconnect',
       'share_feedback',
       'update_my_details',
     ])
@@ -235,6 +236,42 @@ describe('nakodo over stdio', () => {
     expect(api.state.events.length).toBeGreaterThan(eventsBefore)
     expect(api.state.events.some((e) => e.type === 'rematch_proposed' || e.type === 'client_rematch_proposed')).toBe(true)
     api.state.pool = api.state.pool.filter((c) => c.card_id !== 'c-prior')
+  })
+
+  it('reconnect does not send anything without approved=true', async () => {
+    const out = await callText('reconnect', {
+      reconnect_url: 'http://x/intro/own-token-abc',
+      ask_id: poolAskId,
+      message: 'hey, working on X now',
+      approved: false,
+    })
+    expect(out).toContain('Not sent')
+    expect(api.state.reconnects).toHaveLength(0)
+  })
+
+  it('reconnect posts the approved message into the existing thread with ask attribution', async () => {
+    const out = await callText('reconnect', {
+      reconnect_url: 'http://x/intro/own-token-abc',
+      ask_id: poolAskId,
+      message: "I'm now working on onboarding — you'd hit this exact problem. Pick your brain?",
+      approved: true,
+    })
+    expect(out.toLowerCase()).toContain('sent')
+    expect(api.state.reconnects).toHaveLength(1)
+    expect(api.state.reconnects[0]).toMatchObject({ token: 'own-token-abc', ask_id: poolAskId })
+    // §4: server-side rematch_reconnected fired on the ask-attributed post
+    expect(api.state.events.some((e) => e.type === 'rematch_reconnected')).toBe(true)
+  })
+
+  it('reconnect with a stale/foreign ask_id is rejected loudly (400), nothing posted', async () => {
+    const out = await callText('reconnect', {
+      reconnect_url: 'http://x/intro/own-token-abc',
+      ask_id: 'not-an-ask',
+      message: 'hi',
+      approved: true,
+    })
+    expect(out).toContain("isn't an open ask")
+    expect(api.state.reconnects).toHaveLength(1) // unchanged
   })
 
   it('propose_intro creates a held intro after the user approves a card', async () => {

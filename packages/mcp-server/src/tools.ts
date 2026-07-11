@@ -22,6 +22,12 @@ function client(): ApiClient {
   return new ApiClient(apiUrl(), cfg.token)
 }
 
+// M9b: pull the intro token out of a reconnect_url ("…/intro/<token>") so the
+// reconnect posts to the message endpoint. Returns null if it doesn't look like one.
+function introToken(reconnectUrl: string): string | null {
+  return reconnectUrl.match(/\/intro\/([^/?#]+)/)?.[1] ?? null
+}
+
 function handleApiError(err: unknown) {
   if (err instanceof ApiError) {
     return errorText(
@@ -157,7 +163,7 @@ const POOL_WARNING = [
 // M9b §3: prior connections come FIRST, framed as reconnection, not a new match.
 const REMATCH_INTRO = [
   `🔗 REVISIT FIRST — the user has ALREADY connected with the person/people below through a past introduction, and they may fit this ask. Surface these before any strangers, framed as reconnection: "you already know each other from a previous introduction — this is exactly what they were strong at."`,
-  `To reconnect: draft a short message that carries the user's new ask, get their explicit approval of the exact text (same rule as always — nothing is sent unapproved), then it goes into that existing thread via the reconnect link above — it reopens the conversation, with no new card and no re-acceptance. If the user passes, nothing happens and the other person never learns a rematch was even considered.`,
+  `To reconnect: draft a short message that carries the user's new ask, get their explicit approval of the exact text (same rule as always — nothing is sent unapproved), then call the \`reconnect\` tool with that card's reconnect link, the ask_id below, and the approved message. It reopens the existing thread — no new card, no re-acceptance. If the user passes, do NOT call anything: passing on a rematch records nothing and the other person never learns it was even considered.`,
 ].join('\n')
 
 const CALIBRATION_GUIDE = [
@@ -376,6 +382,64 @@ export function registerTools(server: McpServer): void {
           }
           if (err.status === 400) {
             return errorText(`Not proposed: the request was malformed (${code ?? 'invalid_body'}). Check card_id, ask_id, and that both reasons are 1–1000 characters.`)
+          }
+        }
+        return handleApiError(err)
+      }
+    },
+  )
+
+  server.registerTool(
+    'reconnect',
+    {
+      title: 'Reconnect with a prior connection',
+      description:
+        'Reopen the conversation with someone the user has ALREADY been introduced to — a prior-connection card from find_collaborator — by posting a short message into the thread the two of them already share. ' +
+        'Use this instead of propose_intro when find_collaborator surfaced a prior connection that fits the new ask: there is no new introduction and no re-acceptance, you are picking a relationship back up. ' +
+        'Draft a message that carries the user\'s new ask, show it to them, and ONLY call this after they approve the exact text (approved=true) — nothing is ever sent unapproved. ' +
+        'The other person is notified the normal way, as with any thread message. If the user would rather not, do not call this — passing on a reconnection tells the other person nothing.',
+      inputSchema: {
+        reconnect_url: z
+          .string()
+          .min(1)
+          .describe("The reconnect link from the prior-connection card in find_collaborator — the user's own existing intro thread."),
+        ask_id: z
+          .string()
+          .min(1)
+          .describe('The ask_id from find_collaborator that this reconnection answers — attributes it to the need.'),
+        message: z.string().min(1).max(4000).describe('The reconnect message, exactly as the user approved it.'),
+        approved: z
+          .boolean()
+          .describe('Must be true, and only after the user approved the exact message text. Nothing is sent otherwise.'),
+      },
+    },
+    async ({ reconnect_url, ask_id, message, approved }) => {
+      const cfg = loadConfig()
+      if (!cfg.token) return text(NOT_REGISTERED)
+      if (!approved) {
+        return text(
+          'Not sent. Show the user the exact message and get their explicit approval first, then call reconnect again with approved=true. Nothing is sent unapproved.',
+        )
+      }
+      const token = introToken(reconnect_url)
+      if (!token) {
+        return errorText("That reconnect link doesn't look right — use the reconnect link exactly as find_collaborator gave it.")
+      }
+      try {
+        await client().reconnectMessage(token, message, ask_id)
+        return text(
+          "Sent into the existing thread — they'll be told a message is waiting, exactly like any thread message. This picks up where the two of you left off; no new introduction was created, and nothing needed re-accepting." +
+            (await pendingNotice()),
+        )
+      } catch (err) {
+        if (err instanceof ApiError) {
+          if (err.status === 400) {
+            return errorText(
+              "Not sent: that ask_id isn't an open ask of the user's. Re-run find_collaborator with their need to get a current ask_id, then reconnect.",
+            )
+          }
+          if (err.status === 404) {
+            return errorText('Not sent: that thread isn\'t reachable. Re-run find_collaborator to get a fresh reconnect link.')
           }
         }
         return handleApiError(err)

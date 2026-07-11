@@ -174,6 +174,16 @@ export class ApiClient {
     return this.request('POST', '/api/feedback', input)
   }
 
+  // M9b (api-contract-m9b): reconnect with a prior connection by posting an
+  // approved message into their EXISTING revealed thread, with `ask_id` so the
+  // server can attribute the reconnect (fires rematch_reconnected). Same message
+  // path the web thread uses — revealed-intros-only is enforced server-side; a
+  // foreign/stale ask_id is 400 (loud, never silently dropped). `token` is the
+  // requester's own intro token, from the reconnect_url find_collaborator surfaced.
+  reconnectMessage(token: string, message: string, ask_id: string): Promise<{ view: string; message_sent: true }> {
+    return this.request('POST', `/api/intro/${encodeURIComponent(token)}`, { message, ask_id })
+  }
+
   // Telemetry must never break the user experience — swallow all failures.
   async logEvent(type: string, installId: string, metadata?: Record<string, unknown>): Promise<void> {
     try {
