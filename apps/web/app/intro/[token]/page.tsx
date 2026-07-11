@@ -1,7 +1,15 @@
+import type { Metadata } from 'next'
 import { findIntroByToken, getIntroMessages, getRevealParties, threadTurn, viewFor } from '../../../lib/intros'
 import { Composer } from './Composer'
 
 export const dynamic = 'force-dynamic'
+
+// Belt to the next.config X-Robots-Tag braces: a page-level noindex so no
+// rendering crawler ever files a token URL. This surface is capability-gated,
+// never meant to be discoverable.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 // Day precision is all the thread tracks (reveal-handoff.md §4.2) — this is a
 // correspondence, not a chat app.
