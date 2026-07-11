@@ -12,7 +12,7 @@ All `[[ ]]` placeholders are **filled**: Matthew Williams / Esmarchstraße 15, 1
 
 ## ⚠️ Open items before publishing
 
-1. **`hello@nakodo.dev` must actually receive mail.** It's live as the *sending* address (Resend, `EMAIL_FROM`), but an Impressum/privacy contact address has to be **reachable**. Per `SETUP-ACCOUNTS.md` this needs Porkbun email forwarding to your Gmail (~2 min). Confirm it's on, or a legal contact address that bounces is itself a compliance gap.
+1. ~~**`hello@nakodo.dev` must actually receive mail.**~~ ✅ Confirmed 2026-07-11 — Porkbun forwarding to Gmail is on.
 
 2. **🚩 DB region vs. the site's public claim — a real trust-accuracy bug.** The homepage ([apps/web/app/page.tsx:65](../../apps/web/app/page.tsx)) states *"Data lives in the EU (Frankfurt)."* The actual Supabase database is on `aws-1-eu-west-2` = AWS **London (UK)** — not Frankfurt, not the EU. This is a false, load-bearing claim on a trust-first product's landing page; a technical reader who checks will catch it. **Decide one:**
    - **Move the DB to Frankfurt (`eu-central-1`)** so the claim becomes true. Best done *now* — there's ~1 row of real data, so migration cost is near-zero, and the launch sweep zeros even that. (CTO task: Supabase can't relocate a project in place — recreate in eu-central-1, swap `DATABASE_URL`, `pnpm db:apply`.) *Recommended.*
