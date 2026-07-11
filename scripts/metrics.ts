@@ -65,8 +65,36 @@ const introsHeld = await one("select count(*) n from intros where status = 'held
 // would read ~100% and lie. Mutual yes (revealed) is the honest signal.
 const introsRevealed = await one("select count(*) n from intros where status = 'revealed'")
 const introsAccepted = introsRevealed
+// Gate #4 counts PEER-TO-PEER exchanges only. The founder-welcome mechanic
+// (concierge-playbook: every activated user gets a concierge intro to Matthew
+// first) is our feedback channel, not the network working — those exchanges must
+// not inflate the gate. Founder identified by email (env-overridable); if his row
+// is absent (e.g. after a baseline zero) founderId is null and the filter no-ops.
+const founderEmail = process.env.FOUNDER_EMAIL ?? 'matthew.williams949@gmail.com'
+const founderId =
+  (await db.query<{ id: string }>('select id from users where email = $1', [founderEmail])).rows[0]?.id ?? null
+
+// Only called when founderId is non-null. founderSide=false → peer-to-peer
+// (founder on neither side); true → founder-welcome intros.
+const exchangeCount = async (founderSide: boolean): Promise<number> =>
+  Number(
+    (
+      await db.query(
+        `select count(*) n from events e
+         where e.type = 'thread_connected'
+           and ${founderSide ? '' : 'not '}exists (
+             select 1 from intros i
+             where i.id::text = e.metadata->>'intro_id'
+               and (i.user_a = $1 or i.user_b = $1))`,
+        [founderId],
+      )
+    ).rows[0]?.n ?? 0,
+  )
 // Both sides messaged in-thread (≥1 each) — the gate-4 "real exchange" signal.
-const exchanges = await one("select count(*) n from events where type = 'thread_connected'")
+const exchanges = founderId
+  ? await exchangeCount(false)
+  : await one("select count(*) n from events where type = 'thread_connected'")
+const founderExchanges = founderId ? await exchangeCount(true) : 0
 
 const bySource = (
   await db.query<{ source: string | null; n: string }>(
@@ -95,7 +123,8 @@ console.log(`ACTIVATION  users: ${users} · activated (profile + ≥1 snippet): 
 console.log(`            snippets: ${snippets} · open asks: ${openAsks}`)
 console.log(`INTROS      proposed (delivered): ${introsProposed} · accepted — both said yes (revealed): ${introsAccepted} (${pct(introsAccepted, introsProposed)} of proposed)` +
   (introsHeld > 0 ? ` · ${introsHeld} held awaiting review` : ''))
-console.log(`EXCHANGE    real exchanges (both sides messaged): ${exchanges}`)
+console.log(`EXCHANGE    real exchanges (peer-to-peer, both sides messaged): ${exchanges}` +
+  (founderId ? `  ·  founder-welcome exchanges (excluded from gate): ${founderExchanges}` : ''))
 console.log(`\nAttribution (users.source):`)
 for (const r of bySource) console.log(`  ${r.source ?? '(none)'}: ${r.n}`)
 if (bySource.length === 0) console.log('  (no users yet)')
