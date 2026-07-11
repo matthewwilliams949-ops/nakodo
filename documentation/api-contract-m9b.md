@@ -43,7 +43,7 @@ The existing message path gains an **optional** `ask_id` alongside `message`:
 
 | Event | Fired by | Name in the events table | Metadata |
 |---|---|---|---|
-| rematch proposed | MCP layer via `POST /api/events` when the agent surfaces ≥1 prior-connection card for an ask | **`client_rematch_proposed`** (the events route namespaces unauthenticated events — mind the prefix when counting) | `{ ask_id, intro_id }` |
+| rematch proposed | MCP layer via `POST /api/events` when the agent surfaces ≥1 prior-connection card for an ask | **`client_rematch_proposed`** (the events route namespaces unauthenticated events — mind the prefix when counting) | `{ ask_id, card_ids }` — the MCP layer has card ids at surface time, not intro ids (2026-07-11 ruling: the pool card stays at exactly 2 additions, so no intro_id on the card; the metrics side maps card→owner→revealed pair for founder exclusion) |
 | rematch reconnected | server, in the message path (above) | `rematch_reconnected` | `{ intro_id, ask_id, side }` |
 
 `pnpm metrics` gains a CIRCLE line counting both (founder exclusion applies, same rule as gate 4).

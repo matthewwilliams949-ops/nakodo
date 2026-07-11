@@ -108,25 +108,43 @@ const founderIntros = founderId
   : 0
 
 // M9b CIRCLE line: the retention backbone — rematches proposed by agents
-// (client_rematch_proposed: fired via /api/events, hence the client_ prefix)
-// vs. reconnects that actually landed in an old thread (rematch_reconnected,
-// server-fired in the message path). Founder exclusion, same rule as gate 4.
-const circleCount = async (type: string): Promise<number> =>
-  Number(
-    (
-      await db.query(
-        `select count(*) n from events e
-         where e.type = $1
-           ${founderId ? `and not exists (
-             select 1 from intros i
-             where i.id::text = e.metadata->>'intro_id'
-               and (i.user_a = $2 or i.user_b = $2))` : ''}`,
-        founderId ? [type, founderId] : [type],
-      )
-    ).rows[0]?.n ?? 0,
-  )
-const rematchesProposed = await circleCount('client_rematch_proposed')
-const rematchesReconnected = await circleCount('rematch_reconnected')
+// (client_rematch_proposed, metadata { ask_id, card_ids }: fired via
+// /api/events, hence the client_ prefix) vs. reconnects that landed in an old
+// thread (rematch_reconnected, server-fired, metadata carries intro_id).
+// Founder exclusion, same rule as gate 4 — the two events carry different
+// keys, so each maps to the founder its own way (contract: api-contract-m9b.md).
+const rematchesProposed = Number(
+  (
+    await db.query(
+      `select count(*) n from events e
+       where e.type = 'client_rematch_proposed'
+         ${founderId ? `
+         -- excluded when the asking user is the founder, or when every
+         -- surfaced prior-connection card is the founder's own card
+         and not exists (
+           select 1 from asks a
+           where a.id::text = e.metadata->>'ask_id' and a.user_id = $1)
+         and exists (
+           select 1 from jsonb_array_elements_text(e.metadata->'card_ids') c
+           join profiles p on p.card_id::text = c.value
+           where p.user_id <> $1)` : ''}`,
+      founderId ? [founderId] : [],
+    )
+  ).rows[0]?.n ?? 0,
+)
+const rematchesReconnected = Number(
+  (
+    await db.query(
+      `select count(*) n from events e
+       where e.type = 'rematch_reconnected'
+         ${founderId ? `and not exists (
+           select 1 from intros i
+           where i.id::text = e.metadata->>'intro_id'
+             and (i.user_a = $1 or i.user_b = $1))` : ''}`,
+      founderId ? [founderId] : [],
+    )
+  ).rows[0]?.n ?? 0,
+)
 
 const bySource = (
   await db.query<{ source: string | null; n: string }>(
