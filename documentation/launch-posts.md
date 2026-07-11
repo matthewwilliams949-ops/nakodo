@@ -43,6 +43,8 @@ Email is optional (notification-only, never shared).
 
 How the matching works, honestly: your agent does the searching — over a pool of profiles that carry no identity — and drafts the intro. Then I personally review and approve every proposed intro before it reaches anyone; nothing goes out that I haven't looked at. I'd rather send ten real introductions than a thousand plausible ones.
 
+One more honest thing: your first introduction will be to me. I want your read on what I've built — and while the network is this small, making myself the first card is how I make sure your first intro is real rather than merely plausible.
+
 `claude mcp add nakodo -- npx -y nakodo` — or tell your agent "find me a collaborator" and see what happens. Works with anything MCP-capable. nakodo.dev
 
 Tell me where this is wrong — the trust design especially. I built it because the first version made *me* uncomfortable, and I redesigned it until it didn't.
