@@ -107,6 +107,31 @@ const founderIntros = founderId
     )
   : 0
 
+// Seed-window leading indicator (CEO ask, 2026-07-11): how fast do people
+// NOTICE and ANSWER intros? Unnoticed intros read as silent declines inside
+// the 14-day window — this line is the daily early warning for gates #3/#4.
+// proposed→seen uses the card_viewed event (MIN per intro/side; email-prefetch
+// noise makes it an upper bound on noticing speed); proposed→response uses the
+// intros table's own responded_at. Window: last 14 days of proposals.
+const medianHours = async (sql: string): Promise<string> => {
+  const v = (await db.query<{ h: string | null }>(sql)).rows[0]?.h
+  return v == null ? '—' : `${Number(v).toFixed(1)}h`
+}
+const seenLatency = await medianHours(`
+  select percentile_cont(0.5) within group (order by extract(epoch from first_seen - i.created_at) / 3600) h
+  from intros i
+  join lateral (
+    select min(e.created_at) first_seen from events e
+    where e.type = 'card_viewed' and e.metadata->>'intro_id' = i.id::text
+  ) s on s.first_seen is not null
+  where i.created_at > now() - interval '14 days' and i.status not in ('held', 'vetoed')`)
+const responseLatency = await medianHours(`
+  select percentile_cont(0.5) within group (order by extract(epoch from r.responded - i.created_at) / 3600) h
+  from intros i
+  cross join lateral unnest(array[i.a_responded_at, i.b_responded_at]) as r(responded)
+  where r.responded is not null
+    and i.created_at > now() - interval '14 days' and i.status not in ('held', 'vetoed')`)
+
 const bySource = (
   await db.query<{ source: string | null; n: string }>(
     'select source, count(*) n from users group by source order by n desc',
@@ -136,6 +161,7 @@ console.log(`INTROS      proposed (delivered): ${introsProposed} · accepted —
   (introsHeld > 0 ? ` · ${introsHeld} held awaiting review` : ''))
 console.log(`EXCHANGE    real exchanges (peer-to-peer, both sides messaged): ${exchanges}` +
   (founderId ? `  ·  founder-welcome (excluded from gate): ${founderIntros} intros, ${founderExchanges} exchanges` : ''))
+console.log(`LATENCY     median proposed→card-seen: ${seenLatency} · proposed→response: ${responseLatency}  (14-day window, per side)`)
 console.log(`\nAttribution (users.source):`)
 for (const r of bySource) console.log(`  ${r.source ?? '(none)'}: ${r.n}`)
 if (bySource.length === 0) console.log('  (no users yet)')

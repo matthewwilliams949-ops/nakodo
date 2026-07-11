@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { findIntroByToken, getIntroMessages, getRevealParties, threadTurn, viewFor } from '../../../lib/intros'
+import { logEvent } from '../../../lib/events'
 import { Composer } from './Composer'
 
 export const dynamic = 'force-dynamic'
@@ -38,6 +39,16 @@ export default async function IntroPage({ params }: { params: Promise<{ token: s
   const { intro, side } = found
   const view = viewFor(intro, side)
   const card = side === 'a' ? intro.card_a : intro.card_b
+
+  // Seed leading indicator: the moment a card is first SEEN, pre-response —
+  // lets metrics split "never noticed the intro" from "saw it, hesitating"
+  // (unnoticed intros read as silent declines inside the 14-day window).
+  // Fires on every card-state render; metrics takes MIN per (intro, side).
+  // Known noise: email-client link prefetchers can trigger it — treat the
+  // metric as an upper bound on noticing speed.
+  if (view === 'card') {
+    await logEvent({ type: 'card_viewed', metadata: { intro_id: intro.id, side } })
+  }
 
   if (view === 'expired') {
     return (
