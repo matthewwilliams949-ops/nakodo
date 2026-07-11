@@ -107,6 +107,27 @@ const founderIntros = founderId
     )
   : 0
 
+// Founder-welcome pass (concierge-playbook §23): every activated user's first
+// intro is Matthew. It's a MANUAL send (pnpm intro:send) — so the reliable
+// trigger is surfacing WHO still needs one. Activated (profile + ≥1 snippet),
+// not the founder, and no existing intro linking them to the founder.
+const founderPassDue = founderId
+  ? (
+      await db.query<{ handle: string | null; location: string | null; created_at: string | Date }>(
+        `select u.handle, u.location, u.created_at
+         from users u
+         where u.id <> $1
+           and exists (select 1 from profiles p where p.user_id = u.id)
+           and exists (select 1 from snippets s where s.user_id = u.id)
+           and not exists (
+             select 1 from intros i
+             where (i.user_a = u.id and i.user_b = $1) or (i.user_b = u.id and i.user_a = $1))
+         order by u.created_at`,
+        [founderId],
+      )
+    ).rows
+  : []
+
 // Seed-window leading indicator (CEO ask, 2026-07-11): how fast do people
 // NOTICE and ANSWER intros? Unnoticed intros read as silent declines inside
 // the 14-day window — this line is the daily early warning for gates #3/#4.
@@ -162,6 +183,15 @@ console.log(`INTROS      proposed (delivered): ${introsProposed} · accepted —
 console.log(`EXCHANGE    real exchanges (peer-to-peer, both sides messaged): ${exchanges}` +
   (founderId ? `  ·  founder-welcome (excluded from gate): ${founderIntros} intros, ${founderExchanges} exchanges` : ''))
 console.log(`LATENCY     median proposed→card-seen: ${seenLatency} · proposed→response: ${responseLatency}  (14-day window, per side)`)
+if (founderId) {
+  console.log(`\n▶ FOUNDER-WELCOME PASS — activated, no founder intro yet (send each via \`pnpm intro:send\`):`)
+  if (founderPassDue.length === 0) console.log('  (none — every activated user has been welcomed)')
+  for (const r of founderPassDue)
+    console.log(`  ${r.handle ?? '(no handle)'}${r.location ? ` · ${r.location}` : ''} · activated ${new Date(r.created_at).toISOString().slice(0, 10)}`)
+} else {
+  console.log(`\n▶ FOUNDER-WELCOME PASS — founder not yet onboarded; no founder card in the pool (set FOUNDER_EMAIL / onboard user #1).`)
+}
+
 console.log(`\nAttribution (users.source):`)
 for (const r of bySource) console.log(`  ${r.source ?? '(none)'}: ${r.n}`)
 if (bySource.length === 0) console.log('  (no users yet)')
