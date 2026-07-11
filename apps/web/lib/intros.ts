@@ -10,16 +10,23 @@ export interface IntroRow {
   id: string
   user_a: string | null
   user_b: string | null
+  proposed_by: string | null // M8: proposing user (null = concierge)
+  ask_id: string | null // M8: the ask this intro answers
   card_a: string
   card_b: string
   a_response: 'accepted' | 'declined' | null
   b_response: 'accepted' | 'declined' | null
-  status: 'proposed' | 'revealed' | 'declined'
+  status: 'held' | 'vetoed' | 'proposed' | 'revealed' | 'declined'
   token_a: string
   token_b: string
   token_expires_at: string | Date
-  a_contact: string | null
-  b_contact: string | null
+}
+
+export interface IntroMessage {
+  id: string
+  side: 'a' | 'b'
+  body: string
+  created_at: string | Date
 }
 
 export function appUrl(): string {
@@ -75,18 +82,21 @@ export async function createIntro(input: {
   ] as const) {
     if (!user.email) continue // no email: the agent surfaces the intro in-session
     const base = `${appUrl()}/intro/${token}`
-    const mail = introCard(card, `${base}?respond=accept`, `${base}?respond=decline`)
+    const mail = introCard(card, base)
     await sendEmail({ to: user.email, ...mail })
   }
   await logEvent({ type: 'intro_proposed', metadata: { intro_id: id } })
   return { id }
 }
 
+// M8: 'held' (awaiting review) and 'vetoed' (review said no) intros are
+// excluded HERE, in the lookup — their tokens resolve to nothing, so to the
+// target they are mechanically indistinguishable from never having existed.
 export async function findIntroByToken(
   token: string,
 ): Promise<{ intro: IntroRow; side: 'a' | 'b' } | null> {
   const { rows } = await getDb().query<IntroRow>(
-    'select * from intros where token_a = $1 or token_b = $1',
+    "select * from intros where (token_a = $1 or token_b = $1) and status not in ('held', 'vetoed')",
     [token],
   )
   const intro = rows[0]
@@ -180,25 +190,109 @@ async function sendRevealNotices(intro: IntroRow): Promise<void> {
   }
 }
 
-// v1.1: after reveal, each side may leave contact details for the other.
-// Only writable on a revealed intro; only ever displayed on the counterpart's
-// own intro page.
-export async function setContact(
+// M8: the intro thread (replaces the v1.1 single contact field). Messages are
+// person-to-person; contact details shared inside them are the sender's free
+// choice. HARD RULE, enforced here and regression-pinned: a message can only
+// ever be written to a REVEALED intro — no cold-messaging surface can exist.
+export async function postIntroMessage(
   token: string,
-  contact: string,
-): Promise<{ view: IntroView } | null> {
+  body: string,
+): Promise<{ view: IntroView; posted: boolean } | null> {
   const found = await findIntroByToken(token)
   if (!found) return null
   const { intro, side } = found
   const view = viewFor(intro, side)
-  if (view !== 'revealed') return { view }
+  if (view !== 'revealed') return { view, posted: false }
 
-  const col = side === 'a' ? 'a_contact' : 'b_contact'
-  await getDb().query(`update intros set ${col} = $1 where id = $2`, [contact, intro.id])
+  const senderId = side === 'a' ? intro.user_a : intro.user_b
+  if (!senderId) return { view, posted: false } // sender deleted their account
+
+  await getDb().query(
+    'insert into intro_messages (intro_id, sender_id, side, body) values ($1, $2, $3, $4)',
+    [intro.id, senderId, side, body],
+  )
+  // Event name per reveal-handoff §8 (matches the Product lane's standard).
   await logEvent({
-    type: 'contact_shared',
-    userId: side === 'a' ? intro.user_a : intro.user_b,
+    type: 'message_sent',
+    userId: senderId,
     metadata: { intro_id: intro.id, side },
   })
-  return { view: 'revealed' }
+  return { view: 'revealed', posted: true }
+}
+
+export async function getIntroMessages(introId: string): Promise<IntroMessage[]> {
+  const { rows } = await getDb().query<IntroMessage>(
+    'select id, side, body, created_at from intro_messages where intro_id = $1 order by created_at asc, id asc',
+    [introId],
+  )
+  return rows
+}
+
+// ---------------------------------------------------------------------------
+// M8 seed-phase review (T6). Matthew's one-click quality floor: agent
+// proposals sit in 'held' until approved (→ 'proposed', the target is told)
+// or vetoed (→ 'vetoed', silent). Only what the REVIEWER needs is surfaced:
+// the exact card the target would see, plus why_for_me for judging intent —
+// never the proposer's identity fields.
+// ---------------------------------------------------------------------------
+
+export interface HeldProposal {
+  id: string
+  created_at: string | Date
+  card_b: string // exactly what the target will see if approved
+  why_for_me: string | null // calibration/intent signal, review-only
+}
+
+export async function listHeldProposals(): Promise<HeldProposal[]> {
+  const { rows } = await getDb().query<HeldProposal>(
+    `select i.id, i.created_at, i.card_b,
+       (select e.metadata->>'why_for_me' from events e
+         where e.type = 'intro_proposal_held' and e.metadata->>'intro_id' = i.id::text
+         limit 1) as why_for_me
+     from intros i
+     where i.status = 'held' and i.token_expires_at > now()
+     order by i.created_at asc`,
+  )
+  return rows
+}
+
+// Approve: the intro becomes a standard 'proposed' — the target gets their
+// card (email if on file; otherwise their agent surfaces it via pending).
+// The proposer is told nothing here: they already accepted by proposing, and
+// their next signal is the reveal, if it ever comes.
+export async function approveProposal(id: string): Promise<boolean> {
+  const db = getDb()
+  const { rows } = await db.query<{ id: string; user_b: string | null; card_b: string; token_b: string }>(
+    `update intros set status = 'proposed' where id = $1 and status = 'held' and token_expires_at > now()
+     returning id, user_b, card_b, token_b`,
+    [id],
+  )
+  const intro = rows[0]
+  if (!intro) return false
+  if (intro.user_b) {
+    const target = await db.query<{ email: string | null }>('select email from users where id = $1', [
+      intro.user_b,
+    ])
+    const email = target.rows[0]?.email
+    if (email) {
+      await sendEmail({ to: email, ...introCard(intro.card_b, `${appUrl()}/intro/${intro.token_b}`) })
+    }
+  }
+  await logEvent({ type: 'intro_proposed', metadata: { intro_id: id, via: 'agent_approved' } })
+  return true
+}
+
+// Veto: silent, total. Status 'vetoed' keeps both tokens resolving to nothing
+// (findIntroByToken) and the row out of pending — to the target it never
+// existed; to the proposer it is indistinguishable from a decline (waiting,
+// forever). Nothing is sent to anyone.
+export async function vetoProposal(id: string): Promise<boolean> {
+  const { rows } = await getDb().query<{ id: string }>(
+    `update intros set status = 'vetoed', resolved_at = now() where id = $1 and status = 'held'
+     returning id`,
+    [id],
+  )
+  if (!rows[0]) return false
+  await logEvent({ type: 'intro_vetoed', metadata: { intro_id: id } })
+  return true
 }

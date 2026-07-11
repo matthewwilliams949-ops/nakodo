@@ -1,4 +1,4 @@
-import { findIntroByToken, viewFor } from '../../../lib/intros'
+import { findIntroByToken, getIntroMessages, viewFor } from '../../../lib/intros'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,41 +52,40 @@ export default async function IntroPage({ params }: { params: Promise<{ token: s
   }
 
   if (view === 'revealed') {
-    const ownContact = side === 'a' ? intro.a_contact : intro.b_contact
-    const theirContact = side === 'a' ? intro.b_contact : intro.a_contact
+    // M8 plumbing: the thread replaces the v1.1 single contact field. Messages
+    // are person-to-person; contact shared in one is the sender's free choice.
+    const messages = await getIntroMessages(intro.id)
     return (
       <main>
         <h1>You both said yes</h1>
         <div className="card">
           <p>{card}</p>
         </div>
-        {theirContact ? (
-          <p>
-            They left you this: <strong>{theirContact}</strong>
-          </p>
+        {messages.length === 0 ? (
+          <p className="muted">No messages yet — say hello. The card&apos;s &quot;why&quot; is your agenda.</p>
         ) : (
-          <p className="muted">They haven&apos;t left contact details yet — check back, or leave yours first.</p>
+          <div className="thread">
+            {messages.map((m) => (
+              <p key={m.id}>
+                <strong>{m.side === side ? 'You' : 'They'}:</strong> {m.body}
+              </p>
+            ))}
+          </div>
         )}
         <form method="post" action={`/api/intro/${token}`}>
           <input
-            name="contact"
-            maxLength={300}
-            defaultValue={ownContact ?? ''}
-            placeholder="How should they reach you? Email, X, Discord — whatever you're comfortable with."
+            name="message"
+            maxLength={2000}
+            placeholder="Write to them — share whatever contact details you're comfortable with, or just say hello."
           />
           <div className="actions">
             <button className="accept" type="submit">
-              {ownContact ? 'Update what they see' : 'Leave it for them'}
+              Send
             </button>
           </div>
         </form>
         <p className="muted">
-          Contact details are exchanged only here, only by the two of you. Nothing is ever sent on your behalf.
-        </p>
-        <p className="muted">
-          What now? The card&apos;s &quot;why&quot; is your agenda — most introductions start with a
-          30-minute call, or trading a look at what you&apos;re each building and one piece of
-          honest feedback.
+          Messages go only to the other person, only here. Nothing is ever sent on your behalf.
         </p>
       </main>
     )
