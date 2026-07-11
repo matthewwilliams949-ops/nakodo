@@ -213,6 +213,30 @@ describe('nakodo over stdio', () => {
     api.state.pool = api.state.pool.filter((c) => c.card_id !== 'c-forge')
   })
 
+  it('M9b: a prior-connection card surfaces FIRST as a reconnection, carries the own-token reconnect link, no identity, and fires rematch_proposed', async () => {
+    const eventsBefore = api.state.events.length
+    // additive: a prior connection (revealed pair) + keep c1/c2 as strangers
+    api.state.pool.unshift({
+      card_id: 'c-prior',
+      profile: 'Design-led founder who has shipped two onboarding funnels.',
+      snippets: [{ body: 'Reworked an activation flow.', created_at: '2026-07-08T00:00:00Z' }],
+      prior_connection: true,
+      reconnect_url: 'http://x/intro/own-token-abc',
+    })
+    const out = await callText('find_collaborator', { need: 'someone strong at product design' })
+    // reconnection framing + the reconnect link (own token), surfaced first
+    expect(out).toContain('REVISIT FIRST')
+    expect(out).toContain('already know each other')
+    expect(out).toContain('http://x/intro/own-token-abc')
+    expect(out.indexOf('c-prior')).toBeLessThan(out.indexOf('c1')) // priors before strangers
+    // still zero identity — the reconnect link is a token, never a name
+    expect(out).not.toContain('display_name')
+    // §4: the retention event fired, attributable to the ask
+    expect(api.state.events.length).toBeGreaterThan(eventsBefore)
+    expect(api.state.events.some((e) => e.type === 'rematch_proposed' || e.type === 'client_rematch_proposed')).toBe(true)
+    api.state.pool = api.state.pool.filter((c) => c.card_id !== 'c-prior')
+  })
+
   it('propose_intro creates a held intro after the user approves a card', async () => {
     const out = await callText('propose_intro', {
       card_id: 'c1',

@@ -13,6 +13,10 @@ export interface PoolCard {
   card_id: string
   profile: string
   snippets: { body: string; created_at: string }[]
+  // M9b: prior-connection marking (revealed-pair only); reconnect_url is the
+  // requester's own token. No identity ever.
+  prior_connection?: boolean
+  reconnect_url?: string
 }
 
 export type PendingState = 'card' | 'say_hello' | 'message_waiting'

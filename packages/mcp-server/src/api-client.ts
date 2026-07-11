@@ -54,6 +54,13 @@ export interface PoolCard {
   card_id: string
   profile: string
   snippets: { body: string; created_at: string }[]
+  // M9b: set only for a card whose owner shares a previously REVEALED intro with
+  // the requester. Still zero identity — no name ever enters a pool response.
+  // `reconnect_url` carries the REQUESTER's OWN intro token (their existing
+  // credential), never the counterpart's. (api-contract addendum pending; fields
+  // defined by agent-rematches-m9b.md §1.)
+  prior_connection?: boolean
+  reconnect_url?: string
 }
 
 // GET /api/pool response — note the key is `pool` (not `cards`), per T2.
