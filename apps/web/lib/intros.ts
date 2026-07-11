@@ -2,7 +2,7 @@ import { getDb } from './db'
 import { generateToken } from './tokens'
 import { sendEmail } from './email'
 import { logEvent } from './events'
-import { introCard, revealNotice } from '../emails/templates'
+import { introCard, revealNotice, messageWaiting } from '../emails/templates'
 
 const TOKEN_TTL_DAYS = 14
 
@@ -117,6 +117,20 @@ export function viewFor(intro: IntroRow, side: 'a' | 'b'): IntroView {
   return 'card'
 }
 
+// Within a revealed intro, whose turn is it for THIS side? The whole lifecycle
+// is derivable from the last message's side — no read-receipts, no unread flags
+// (reveal-handoff.md §2). "Ball in this side's court" = say-hello OR your-turn.
+//   say-hello  — thread empty; either side may open
+//   your-turn  — the latest message is the OTHER side's (a reply is waiting)
+//   their-turn — the latest message is this side's (nothing to do)
+export type ThreadTurn = 'say-hello' | 'your-turn' | 'their-turn'
+
+export function threadTurn(messages: IntroMessage[], side: 'a' | 'b'): ThreadTurn {
+  const latest = messages[messages.length - 1]
+  if (!latest) return 'say-hello'
+  return latest.side === side ? 'their-turn' : 'your-turn'
+}
+
 // Records a response. Returns the view this side should now see.
 // Reveal fires only on the second accept; declines write nothing anywhere else
 // and send nothing to anyone (trust rule 4).
@@ -207,6 +221,14 @@ export async function postIntroMessage(
   const senderId = side === 'a' ? intro.user_a : intro.user_b
   if (!senderId) return { view, posted: false } // sender deleted their account
 
+  // Read the thread BEFORE inserting: the previous latest message decides both
+  // the completion event and whether this crosses the ball into the other court.
+  const before = await getIntroMessages(intro.id)
+  const otherSide = side === 'a' ? 'b' : 'a'
+  const prevLatest = before[before.length - 1]
+  const myPriorCount = before.filter((m) => m.side === side).length
+  const otherPriorCount = before.filter((m) => m.side === otherSide).length
+
   await getDb().query(
     'insert into intro_messages (intro_id, sender_id, side, body) values ($1, $2, $3, $4)',
     [intro.id, senderId, side, body],
@@ -217,7 +239,38 @@ export async function postIntroMessage(
     userId: senderId,
     metadata: { intro_id: intro.id, side },
   })
+
+  // thread_connected = gate metric 4 (both sides messaged ≥1). Fires exactly
+  // once: on the message that first makes this side's count ≥1 while the other
+  // side already has ≥1. pnpm metrics counts this event (reveal-handoff.md §8).
+  if (myPriorCount === 0 && otherPriorCount >= 1) {
+    await logEvent({ type: 'thread_connected', metadata: { intro_id: intro.id } })
+  }
+
+  // The anti-nag rule (reveal-handoff.md §6): email the other side only when
+  // the ball CROSSES into their court — i.e. their own message was the previous
+  // latest and this one answers it. The first hello (empty thread) is covered
+  // by revealNotice; consecutive messages from the same side never re-nudge.
+  if (prevLatest && prevLatest.side === otherSide) {
+    await notifyMessageWaiting(intro, otherSide)
+  }
+
   return { view: 'revealed', posted: true }
+}
+
+// Identity-free knock: the message body lives on the page, never in the mail.
+// No email on file → the user hears it in-session (GET /api/intros/pending).
+async function notifyMessageWaiting(intro: IntroRow, targetSide: 'a' | 'b'): Promise<void> {
+  const targetId = targetSide === 'a' ? intro.user_a : intro.user_b
+  const targetToken = targetSide === 'a' ? intro.token_a : intro.token_b
+  if (!targetId) return
+  const { rows } = await getDb().query<{ email: string | null }>(
+    'select email from users where id = $1',
+    [targetId],
+  )
+  const email = rows[0]?.email
+  if (!email) return
+  await sendEmail({ to: email, ...messageWaiting(`${appUrl()}/intro/${targetToken}`) })
 }
 
 export async function getIntroMessages(introId: string): Promise<IntroMessage[]> {
@@ -295,4 +348,32 @@ export async function vetoProposal(id: string): Promise<boolean> {
   if (!rows[0]) return false
   await logEvent({ type: 'intro_vetoed', metadata: { intro_id: id } })
   return true
+}
+
+// The reveal page shows a PERSON: the counterpart's display name (PII store,
+// never in the pool/card) with the fallback chain display_name → handle → none
+// (reveal-handoff.md §3). ownEmail drives the "share the email I gave you" chip
+// and the no-email copy — the page reads its own email, never the other's.
+export interface RevealParties {
+  counterpartName: string | null
+  ownEmail: string | null
+}
+
+export async function getRevealParties(intro: IntroRow, side: 'a' | 'b'): Promise<RevealParties> {
+  const ownId = side === 'a' ? intro.user_a : intro.user_b
+  const otherId = side === 'a' ? intro.user_b : intro.user_a
+  const ids = [ownId, otherId].filter((x): x is string => x !== null)
+  if (ids.length === 0) return { counterpartName: null, ownEmail: null }
+  const { rows } = await getDb().query<{
+    id: string
+    email: string | null
+    handle: string | null
+    display_name: string | null
+  }>('select id, email, handle, display_name from users where id = any($1)', [ids])
+  const own = rows.find((r) => r.id === ownId)
+  const other = rows.find((r) => r.id === otherId)
+  return {
+    counterpartName: other ? (other.display_name ?? other.handle ?? null) : null,
+    ownEmail: own?.email ?? null,
+  }
 }

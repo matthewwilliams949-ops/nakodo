@@ -7,7 +7,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { PGlite } from '@electric-sql/pglite'
 import { setDb } from '../lib/db'
 import { setEmailSender, type Email } from '../lib/email'
-import { createIntro, findIntroByToken } from '../lib/intros'
+import { createIntro, findIntroByToken, getRevealParties, threadTurn } from '../lib/intros'
 import { POST as register } from '../app/api/register/route'
 import { POST as postProfile } from '../app/api/profile/route'
 import { POST as postSnippet } from '../app/api/snippets/route'
@@ -253,7 +253,16 @@ describe('intro flow', () => {
       { side: 'a', body: 'hello — a@x.dev or @alice' },
       { side: 'b', body: '@bob on X' },
     ])
-    expect(sentEmails).toHaveLength(0) // the platform never emails message content
+    // The completion loop DOES knock by email when the ball crosses courts, but
+    // the knock is identity- and content-free — the message body lives only on
+    // the page. B's reply crossed the ball back to A (who left an email).
+    expect(sentEmails).toHaveLength(1)
+    expect(sentEmails[0]!.to).toBe('a@example.com')
+    for (const e of sentEmails) {
+      expect(e.text).not.toContain('@bob on X') // no message body
+      expect(e.text).not.toContain('a@x.dev')
+      expect(e.text).not.toContain('@alice')
+    }
   })
 
   it("held intros are invisible: tokens resolve to nothing, pending excludes them", async () => {
@@ -377,6 +386,158 @@ describe('intro flow', () => {
   it('unknown token → 404', async () => {
     const res = await respond('deadbeef', 'accepted')
     expect(res.status).toBe(404)
+  })
+})
+
+describe('M8 completion loop — thread lifecycle, events, notices, copy', () => {
+  function message(token: string, body: string) {
+    return respondIntro(jsonReq(`/api/intro/${token}`, 'POST', { message: body }), {
+      params: Promise.resolve({ token }),
+    })
+  }
+  function respond(token: string, response: 'accepted' | 'declined') {
+    return respondIntro(jsonReq(`/api/intro/${token}`, 'POST', { response }), {
+      params: Promise.resolve({ token }),
+    })
+  }
+  async function pending(bearer: string): Promise<{ url: string; state: string }[]> {
+    const res = (await (await getPendingIntros(jsonReq('/api/intros/pending', 'GET', undefined, bearer))).json()) as {
+      intros: { url: string; state: string }[]
+    }
+    return res.intros
+  }
+  const countEvents = async (type: string): Promise<number> =>
+    Number((await pg.query<{ n: string }>('select count(*) n from events where type = $1', [type])).rows[0]!.n)
+
+  // A revealed intro between two named people. emails=false → both email-less.
+  async function revealed(emails = true): Promise<{ tokenA: string; tokenB: string; bearerA: string; bearerB: string }> {
+    const bearerA = await registerUser(emails ? 'a@example.com' : undefined, { handle: 'alice', display_name: 'Alice' })
+    const bearerB = await registerUser(emails ? 'b@example.com' : undefined, { handle: 'bob', display_name: 'Bob' })
+    await createIntro({ userA: 'alice', userB: 'bob', cardA: 'card shown to A', cardB: 'card shown to B' })
+    const row = (await pg.query<{ token_a: string; token_b: string }>('select token_a, token_b from intros')).rows[0]!
+    await respond(row.token_a, 'accepted')
+    await respond(row.token_b, 'accepted')
+    sentEmails = []
+    return { tokenA: row.token_a, tokenB: row.token_b, bearerA, bearerB }
+  }
+
+  it('message_sent per message; thread_connected fires exactly once, on the connecting message', async () => {
+    const { tokenA, tokenB } = await revealed()
+    await message(tokenA, 'hi from A')
+    expect(await countEvents('message_sent')).toBe(1)
+    expect(await countEvents('thread_connected')).toBe(0) // only A has spoken
+
+    await message(tokenB, 'hi from B') // makes both sides ≥1 → connected
+    expect(await countEvents('message_sent')).toBe(2)
+    expect(await countEvents('thread_connected')).toBe(1)
+
+    await message(tokenA, 'again') // already connected — no second event
+    expect(await countEvents('message_sent')).toBe(3)
+    expect(await countEvents('thread_connected')).toBe(1)
+  })
+
+  it('message email fires once per ball-crossing — never re-nudges, never on the first hello', async () => {
+    const { tokenA, tokenB } = await revealed()
+
+    await message(tokenA, 'first hello') // empty thread → reveal already covered it
+    expect(sentEmails).toHaveLength(0)
+    await message(tokenA, 'still me') // consecutive → B already knocked, don't re-nudge
+    expect(sentEmails).toHaveLength(0)
+
+    await message(tokenB, 'reply') // crosses the ball back to A
+    expect(sentEmails).toHaveLength(1)
+    expect(sentEmails[0]!.to).toBe('a@example.com')
+    expect(sentEmails[0]!.subject).toContain('message is waiting')
+
+    await message(tokenB, 'more from B') // consecutive → no re-nudge
+    expect(sentEmails).toHaveLength(1)
+
+    await message(tokenA, 'A back') // crosses to B
+    expect(sentEmails).toHaveLength(2)
+    expect(sentEmails[1]!.to).toBe('b@example.com')
+  })
+
+  it('pending endpoint reports the lifecycle state per side, and only when the ball is in your court', async () => {
+    const { tokenA, tokenB, bearerA, bearerB } = await revealed()
+
+    // Empty thread: both sides have the ball — say_hello for each.
+    expect((await pending(bearerA))[0]).toMatchObject({ state: 'say_hello' })
+    expect((await pending(bearerB))[0]).toMatchObject({ state: 'say_hello' })
+
+    await message(tokenA, 'hello')
+    // A just spoke (their-turn) → nothing pending. B has a message → message_waiting.
+    expect(await pending(bearerA)).toHaveLength(0)
+    expect((await pending(bearerB))[0]).toMatchObject({ state: 'message_waiting' })
+
+    await message(tokenB, 'hi back')
+    expect((await pending(bearerA))[0]).toMatchObject({ state: 'message_waiting' })
+    expect(await pending(bearerB)).toHaveLength(0)
+  })
+
+  it('identity stays off the pending channel — no display name ever appears in the payload', async () => {
+    const { bearerA } = await revealed()
+    const raw = await (await getPendingIntros(jsonReq('/api/intros/pending', 'GET', undefined, bearerA))).text()
+    expect(raw).not.toContain('Alice')
+    expect(raw).not.toContain('Bob')
+  })
+
+  it('email-less side: no message email, but the waiting message surfaces in-session', async () => {
+    const { tokenA, bearerB } = await revealed(false)
+    await message(tokenA, 'knock knock') // B has no email → no mail, but pending shows it
+    expect(sentEmails).toHaveLength(0)
+    expect((await pending(bearerB))[0]).toMatchObject({ state: 'message_waiting' })
+  })
+
+  it('getRevealParties: counterpart name is display_name → handle → none; own email for the share chip', async () => {
+    const { tokenA } = await revealed()
+    const found = (await findIntroByToken(tokenA))!
+    const parties = await getRevealParties(found.intro, found.side)
+    expect(parties.counterpartName).toBe('Bob') // A sees B's display name
+    expect(parties.ownEmail).toBe('a@example.com')
+
+    // handle fallback when there is no display name
+    await pg.query("update users set display_name = null where handle = 'bob'")
+    expect((await getRevealParties(found.intro, found.side)).counterpartName).toBe('bob')
+  })
+
+  it('pending payload carries has_email (gates the no-email re-offer, §5)', async () => {
+    const withEmail = await registerUser('e@example.com')
+    const noEmail = await registerUser(undefined, { handle: 'ghost' })
+    const yes = (await (await getPendingIntros(jsonReq('/api/intros/pending', 'GET', undefined, withEmail))).json()) as { has_email: boolean }
+    const no = (await (await getPendingIntros(jsonReq('/api/intros/pending', 'GET', undefined, noEmail))).json()) as { has_email: boolean }
+    expect(yes.has_email).toBe(true)
+    expect(no.has_email).toBe(false)
+  })
+
+  it('threadTurn derives whose court from the last message only', async () => {
+    expect(threadTurn([], 'a')).toBe('say-hello')
+    expect(threadTurn([{ id: '1', side: 'b', body: 'x', created_at: new Date() }], 'a')).toBe('your-turn')
+    expect(threadTurn([{ id: '1', side: 'a', body: 'x', created_at: new Date() }], 'a')).toBe('their-turn')
+  })
+
+  it('the card email is a single link — no Accept/Decline pair, no inert query params', async () => {
+    await registerUser('c@example.com', { handle: 'carol' })
+    await registerUser('d@example.com', { handle: 'dave' })
+    sentEmails = []
+    await createIntro({ userA: 'carol', userB: 'dave', cardA: 'ca', cardB: 'cb' })
+    const email = sentEmails.find((e) => e.to === 'c@example.com')!
+    expect(email.text).toContain('/intro/')
+    expect(email.text).toContain('See the card and decide')
+    expect(email.text).not.toContain('?respond=')
+    expect(email.text).not.toContain('Decline:')
+  })
+
+  it('the reveal email subject carries the action, not just the news (item d)', async () => {
+    const bearerA = await registerUser('a@example.com', { handle: 'alice' })
+    await registerUser('b@example.com', { handle: 'bob' })
+    await createIntro({ userA: 'alice', userB: 'bob', cardA: 'ca', cardB: 'cb' })
+    const row = (await pg.query<{ token_a: string; token_b: string }>('select token_a, token_b from intros')).rows[0]!
+    sentEmails = []
+    await respond(row.token_a, 'accepted')
+    await respond(row.token_b, 'accepted')
+    const reveal = sentEmails.find((e) => e.to === 'a@example.com')!
+    expect(reveal.subject.toLowerCase()).toContain('say hello')
+    void bearerA
   })
 })
 
