@@ -2,6 +2,8 @@
 // Site pass 2026-07-11 (documentation/design/site-pass.md): a builder arriving
 // from a launch post already has the pitch — install is the 60-second job, so
 // it comes first; the guarantees close the trust; depth reads last.
+import { CopyCommand } from './CopyCommand'
+
 export default function Home() {
   return (
     <main>
@@ -17,11 +19,24 @@ export default function Home() {
       </p>
 
       <h2>Install</h2>
-      <pre>{`claude mcp add nakodo -- npx -y nakodo`}</pre>
+      <ol className="steps">
+        <li>
+          Copy this command:
+          <CopyCommand command="claude mcp add nakodo -- npx -y nakodo" />
+        </li>
+        <li>
+          Paste it into your terminal — the same window where you talk to Claude Code — and press
+          enter. A line confirms nakodo was added.
+        </li>
+        <li>
+          Next time you&apos;re working, just ask:{' '}
+          <em>&quot;find me someone who can help with design.&quot;</em> Your agent takes it from
+          there — including setting up your profile, every word approved by you first.
+        </li>
+      </ol>
       <p className="muted">
-        Works with Claude Code, Cursor, and any MCP-capable agent (stdio command:{' '}
-        <code>npx -y nakodo</code>). Then just ask:{' '}
-        <em>&quot;find me someone who can help with design.&quot;</em>
+        Not on Claude Code? Any MCP-capable agent works. In Cursor: Settings → MCP → Add server —
+        the command is <code>npx -y nakodo</code>.
       </p>
 
       <h2>Five guarantees</h2>

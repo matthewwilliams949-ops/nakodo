@@ -71,6 +71,27 @@ ol.guarantees {
 ol.guarantees li { margin: 0.75rem 0; }
 ol.guarantees li::marker { color: var(--muted); }
 
+/* install steps — a real sequence, so numbered; markers quiet mono */
+ol.steps { padding-left: 1.2rem; margin: 1.25rem 0; }
+ol.steps li { margin: 0.7rem 0; }
+ol.steps li::marker { font-family: var(--mono); font-size: 0.85rem; color: var(--muted); }
+
+/* the command + its copy affordance */
+.cmd { position: relative; margin: 0.6rem 0 0.25rem; }
+.cmd pre { margin: 0; padding-right: 6.5rem; }
+button.copy {
+  position: absolute;
+  top: 50%;
+  right: 0.6rem;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  padding: 0.3rem 0.9rem;
+  border-color: var(--muted);
+  color: var(--muted);
+}
+button.copy:hover { border-color: var(--fg); color: var(--fg); background: transparent; }
+button.copy:active { transform: translateY(-50%) translateY(1px); }
+
 /* ——— the anonymous card: the hero artifact ——— */
 
 .card {

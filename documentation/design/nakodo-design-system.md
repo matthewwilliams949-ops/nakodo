@@ -64,6 +64,8 @@ Class names stay as they are in the JSX (`.muted`, `.card`, `.actions`, `button.
 
 **Code / terminal block** (`pre`, `code`): panel bg, 1px `--line` border, mono, bone. The site's install command is the second-most-important brand surface after the card — full-width block, radius 6px, generous padding (`1rem 1.25rem`).
 
+**The copy affordance** (`.cmd` + `button.copy`, added 2026-07-11 at Matthew's direction): the install command never requires selecting text — a small mono `copy` button sits inside the block (absolute, right-centered), ash until hover. On success the label flips to `copied ✓` for 2s; on clipboard rejection the command auto-selects so a manual ⌘C still works. The feedback is bone/ash only — amber stays reserved for introductions. **Install steps** (`ol.steps`): a true sequence, so numbered; Inter body with quiet mono markers — instructions say *where* to paste ("your terminal — the same window where you talk to Claude Code"), written for a non-engineer.
+
 **The guarantees** (`ol.guarantees`): mono `0.85rem`, `line-height: 1.7`, bone; markers in ash. The brand guide's "spec register" voice artifact, applied as pure styling — the decided v2 wording is untouched.
 
 **The thread** (reveal brief §4.2) — correspondence, not chat. No bubbles, no alignment-by-side. Each `.msg`: block, separated by a 1px `--line` top rule (`padding: 12px 0`), sender label + date on one mono `0.85rem` line (You → ash; their name → `.person` amber), body in Inter bone. `.thread-empty` (say-hello state): ash, italic Inter.
