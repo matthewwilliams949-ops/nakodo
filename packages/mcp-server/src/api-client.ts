@@ -158,14 +158,12 @@ export class ApiClient {
     return this.request('POST', '/api/intros/propose', input)
   }
 
-  // M9-0: file a piece of user feedback about a Nakodo moment. Internal-only —
-  // the server stores it, never puts it in the pool or shows it to any user.
-  // The body is instruction-linted (admin reads it) → 422 like propose.
-  // ASSUMES (Trust's feedback contract not yet landed — m9/feedback is empty):
-  // path + { moment, sentiment, body } → 201 { ok, id } stubbed to the fields the
-  // roadmap/work-split name (feedback table: user_id, moment, sentiment, body).
-  // Confirm shape + sentiment values + 422 lint scope when Trust's contract lands.
-  shareFeedback(input: { moment: string; sentiment?: string; body: string }): Promise<{ ok: true; id: string }> {
+  // M9-0: file a piece of user feedback about a Nakodo moment. Per
+  // documentation/api-contract-m9-feedback.md. Internal-only — no read endpoint
+  // exists; the server never puts it in the pool or shows it to any user. `body`
+  // is instruction-linted only (admins read it; identity is allowed) → 422 like
+  // M8. 10/day cap → 429. Response is `{ ok: true }` — nothing to do with a row.
+  shareFeedback(input: { moment: string; sentiment?: string; body: string }): Promise<{ ok: true }> {
     return this.request('POST', '/api/feedback', input)
   }
 

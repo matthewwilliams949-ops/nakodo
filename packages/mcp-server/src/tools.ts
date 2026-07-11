@@ -509,11 +509,11 @@ export function registerTools(server: McpServer): void {
         'Honest framing to give the user: this feedback is drafted by your agent, approved by you, read by the humans building Nakodo, never shared beyond them, never used for matching.',
       inputSchema: {
         moment: z
-          .enum(['onboarding', 'card', 'intro_quality', 'reveal', 'thread', 'waiting'])
+          .enum(['onboarding', 'cards', 'intro_quality', 'reveal', 'thread', 'waiting'])
           .describe('Which Nakodo moment the feedback is about. Only these moments — never general monitoring of the user or their work.'),
         body: z.string().min(1).max(4000).describe('The feedback note, exactly as the user approved it.'),
         sentiment: z
-          .enum(['positive', 'negative', 'mixed', 'neutral'])
+          .enum(['positive', 'neutral', 'negative', 'mixed'])
           .optional()
           .describe('Optional overall tone of the reaction.'),
         approved: z
@@ -537,13 +537,19 @@ export function registerTools(server: McpServer): void {
           'Filed — thank you. It goes only to the people building Nakodo, is never shared beyond them, and never affects matching.',
         )
       } catch (err) {
-        // The body is instruction-linted server-side (admins read it). ASSUMES the
-        // 422 pii_detected shape from the M8 lint until Trust's contract confirms.
-        if (err instanceof ApiError && err.status === 422) {
-          const flags = err.body?.flags?.length ? ` (flagged: ${err.body.flags.join(', ')})` : ''
-          return errorText(
-            `Not filed: the note read as instruction-shaped text${flags}. Rewrite it as plain feedback with no embedded instructions or commands, show the user, and file again with approved=true once they okay it.`,
-          )
+        if (err instanceof ApiError) {
+          // The body is instruction-linted server-side (admins read it); identity
+          // is allowed. Same 422 pii_detected shape as M8 (api-contract-m9-feedback).
+          if (err.status === 422) {
+            const flags = err.body?.flags?.length ? ` (flagged: ${err.body.flags.join(', ')})` : ''
+            return errorText(
+              `Not filed: the note read as instruction-shaped text${flags}. Rewrite it as plain feedback with no embedded instructions or commands, show the user, and file again with approved=true once they okay it.`,
+            )
+          }
+          if (err.status === 429) {
+            const retry = err.body?.retry_after ? ` Try again in about ${err.body.retry_after}s.` : ''
+            return text(`The user has already shared a lot of feedback recently, so nothing was filed this time.${retry} Feedback is a reaction channel, not a stream — this is fine.`)
+          }
         }
         return handleApiError(err)
       }

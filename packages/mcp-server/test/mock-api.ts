@@ -37,6 +37,8 @@ export interface MockState {
   // M9-0: feedback notes filed via share_feedback. Internal-only in the real
   // backend (never in the pool); here just recorded so tests can assert.
   feedback: { moment: string; sentiment?: string; body: string }[]
+  // Fixture toggle for the 10/day cap (429).
+  feedbackRateLimited: boolean
 }
 
 const TEST_TOKEN = 'test-token-1234'
@@ -75,6 +77,7 @@ export async function startMockApi(): Promise<MockApi> {
     proposals: [],
     overProposedCardIds: [],
     feedback: [],
+    feedbackRateLimited: false,
   }
 
   const server: Server = createServer((req, res) => {
@@ -107,8 +110,9 @@ export async function startMockApi(): Promise<MockApi> {
           return json(201, { ok: true })
         case 'POST /api/feedback': {
           if (!authed) return json(401, { error: 'unauthorized' })
-          // Instruction-lint the body (admins read it). Minimal stand-in; the
-          // real lint is apps/web/lib/pii-lint.ts's instruction check.
+          if (state.feedbackRateLimited) return json(429, { error: 'rate_limited', retry_after: 3600 })
+          // Instruction-lint the body ONLY (admins read it; identity is allowed —
+          // "the link on nakodo.dev broke" is legit). Real lint: lib/pii-lint.ts.
           if (/ignore (all |the )?(previous|prior|above)\s+instructions|<\/?(system|assistant)>|(^|\n)\s*system\s*:/i.test(body.body ?? '')) {
             return json(422, {
               error: 'pii_detected',
@@ -117,7 +121,7 @@ export async function startMockApi(): Promise<MockApi> {
             })
           }
           state.feedback.push({ moment: body.moment, sentiment: body.sentiment, body: body.body })
-          return json(201, { ok: true, id: `f${state.feedback.length}` })
+          return json(201, { ok: true })
         }
         case 'POST /api/profile': {
           if (!authed) return json(401, { error: 'unauthorized' })

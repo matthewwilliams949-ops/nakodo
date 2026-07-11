@@ -289,12 +289,12 @@ describe('nakodo over stdio', () => {
   // M9-0 — the load-bearing guarantee-1-extended property: share_feedback can
   // NEVER post text the user hasn't approved.
   it('share_feedback does not file anything without approved=true', async () => {
-    const outFalse = await callText('share_feedback', { moment: 'card', body: 'the card felt thin', approved: false })
+    const outFalse = await callText('share_feedback', { moment: 'cards', body: 'the card felt thin', approved: false })
     expect(outFalse).toContain('Not filed')
     expect(outFalse.toLowerCase()).toContain('approv')
     expect(api.state.feedback).toHaveLength(0)
     // approved omitted entirely is a schema error (required) — still nothing filed
-    const res = await client.callTool({ name: 'share_feedback', arguments: { moment: 'card', body: 'x' } })
+    const res = await client.callTool({ name: 'share_feedback', arguments: { moment: 'cards', body: 'x' } })
     expect(res.isError).toBe(true)
     expect(api.state.feedback).toHaveLength(0)
   })
@@ -320,6 +320,14 @@ describe('nakodo over stdio', () => {
     })
     expect(out).toContain('instruction-shaped')
     expect(api.state.feedback).toHaveLength(1) // unchanged — not filed
+  })
+
+  it('share_feedback handles the daily cap gracefully (429, not an error)', async () => {
+    api.state.feedbackRateLimited = true
+    const out = await callText('share_feedback', { moment: 'waiting', body: 'still waiting, no matches yet', approved: true })
+    expect(out.toLowerCase()).toContain('feedback')
+    expect(api.state.feedback).toHaveLength(1) // unchanged
+    api.state.feedbackRateLimited = false
   })
 
   it('update_my_details sets the reveal name and notification email', async () => {
