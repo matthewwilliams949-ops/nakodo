@@ -166,6 +166,9 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 **M9c — authed `/inbox`** *(2–3 days · Trust & Platform + Product · GATED on Design's `documentation/design/inbox-surface.md` — not landed; auth-seam co-spec already closed between Trust and Product)*
 - [ ] Ungated by CTO only after Design's brief lands and 0.2.2 is out
 
+**Seed-window ops tooling *(small, post-0.2.2, only if the manual loop proves unreliable)*:**
+- [ ] **Founder-welcome pre-draft helper.** Today the trigger is surfaced (`pnpm metrics` ▶ FOUNDER-WELCOME PASS lists activated users with no founder intro) and the send is manual (`pnpm intro:send`, warmth-by-hand — deliberate). If that manual loop starts missing people at volume, build a helper that lists un-welcomed activations AND pre-drafts each founder card from their record, leaving Matthew to edit+send. Human stays in the loop; kills the silent-miss risk. Trigger to build: a missed founder-welcome is observed, or activations outpace the ≤30-min/week concierge budget. Do NOT auto-send (kills the warmth that is the whole point).
+
 **Parked pending gates:** verification/LinkedIn (boolean-only in pool when built), algorithmic matching, remote MCP, monetization, multi-project profiles.
 
 ---
