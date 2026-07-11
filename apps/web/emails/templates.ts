@@ -16,7 +16,10 @@ export function welcome(): { subject: string; text: string } {
   }
 }
 
-export function introCard(card: string, acceptUrl: string, declineUrl: string): { subject: string; text: string } {
+// A single link, not an Accept/Decline pair: the labels implied one-click
+// actions the links don't perform, and invited a decision before the card was
+// even read. One link to the page, which is where the card and the buttons are.
+export function introCard(card: string, url: string): { subject: string; text: string } {
   return {
     subject: `An introduction is waiting for you`,
     text: [
@@ -24,10 +27,9 @@ export function introCard(card: string, acceptUrl: string, declineUrl: string): 
       ``,
       `  ${card}`,
       ``,
-      `If you want the introduction, accept below. They see nothing unless you both say yes — and if you pass, they'll never know this card existed.`,
+      `See the card and decide:  ${url}`,
       ``,
-      `Accept:  ${acceptUrl}`,
-      `Decline: ${declineUrl}`,
+      `They see nothing unless you both say yes — and if you pass, they'll never know this card existed.`,
       ``,
       `— ${PRODUCT}`,
     ].join('\n'),

@@ -82,7 +82,7 @@ export async function createIntro(input: {
   ] as const) {
     if (!user.email) continue // no email: the agent surfaces the intro in-session
     const base = `${appUrl()}/intro/${token}`
-    const mail = introCard(card, `${base}?respond=accept`, `${base}?respond=decline`)
+    const mail = introCard(card, base)
     await sendEmail({ to: user.email, ...mail })
   }
   await logEvent({ type: 'intro_proposed', metadata: { intro_id: id } })
@@ -275,8 +275,7 @@ export async function approveProposal(id: string): Promise<boolean> {
     ])
     const email = target.rows[0]?.email
     if (email) {
-      const base = `${appUrl()}/intro/${intro.token_b}`
-      await sendEmail({ to: email, ...introCard(intro.card_b, `${base}?respond=accept`, `${base}?respond=decline`) })
+      await sendEmail({ to: email, ...introCard(intro.card_b, `${appUrl()}/intro/${intro.token_b}`) })
     }
   }
   await logEvent({ type: 'intro_proposed', metadata: { intro_id: id, via: 'agent_approved' } })
