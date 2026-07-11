@@ -27,7 +27,7 @@ export interface RecordResponse {
   user: { email: string | null; handle: string | null; location: string | null; display_name?: string | null }
   profile: { body: string; approved_at: string } | null
   snippets: { body: string; created_at: string }[]
-  asks: { need: string; status: string; created_at: string }[]
+  asks: { id: string; need: string; status: string; created_at: string }[]
 }
 
 // M8: the pending channel is meant to become a whole-lifecycle channel (design
@@ -113,7 +113,8 @@ export class ApiClient {
     return this.request('POST', '/api/snippets', { body })
   }
 
-  addAsk(need: string): Promise<{ ok: true; id: string }> {
+  // Idempotent per (user, open, need): a repeat returns 200 { id, existing: true }.
+  addAsk(need: string): Promise<{ ok: true; id: string; existing?: boolean }> {
     return this.request('POST', '/api/asks', { need })
   }
 
@@ -123,6 +124,13 @@ export class ApiClient {
 
   deleteMe(): Promise<{ ok: true; deleted: true }> {
     return this.request('DELETE', '/api/me')
+  }
+
+  // M8: update own PII-store fields (notification email + reveal display_name).
+  // Backs the "add an email any time" re-offer (design §4.3). Explicit null
+  // clears a field; omitted fields untouched. 409 if the email is someone else's.
+  updateMe(input: { email?: string | null; display_name?: string | null }): Promise<{ ok: true }> {
+    return this.request('PATCH', '/api/me', input)
   }
 
   pendingIntros(): Promise<PendingIntrosResponse> {

@@ -117,10 +117,23 @@ export async function startMockApi(): Promise<MockApi> {
         }
         case 'POST /api/asks': {
           if (!authed) return json(401, { error: 'unauthorized' })
+          // Idempotent per (user, open, need): a repeat returns the existing id.
+          const existingIdx = state.asks.indexOf(body.need)
+          if (existingIdx !== -1) {
+            return json(200, { ok: true, id: `a${existingIdx + 1}`, existing: true })
+          }
           state.asks.push(body.need)
           const askId = `a${state.asks.length}`
           state.openAskIds.push(askId)
           return json(201, { ok: true, id: askId })
+        }
+        case 'PATCH /api/me': {
+          if (!authed || !state.registered) return json(401, { error: 'unauthorized' })
+          // Explicit null clears; omitted fields untouched. (Single-user mock, so
+          // the 409-email-taken path isn't simulated.)
+          if (body.email !== undefined) state.registered.email = body.email
+          if (body.display_name !== undefined) state.registered.display_name = body.display_name
+          return json(200, { ok: true })
         }
         case 'GET /api/pool':
           if (!authed) return json(401, { error: 'unauthorized' })
@@ -131,23 +144,27 @@ export async function startMockApi(): Promise<MockApi> {
           return json(200, { pool: state.pool, generated_at: '2026-07-10T18:00:00Z' })
         case 'POST /api/intros/propose': {
           if (!authed) return json(401, { error: 'unauthorized' })
-          // Error precedence mirrors api-contract-m8.md; branch on error code.
+          // Error precedence mirrors the real route order (api-contract-m8.md):
+          // pii → ask → card → no_profile → cap → already_proposed → target_busy.
           const pii = mockPiiCheck(`${body.why_for_them ?? ''} ${body.why_for_me ?? ''}`)
           if (pii) return json(422, pii)
+          if (!state.openAskIds.includes(body.ask_id)) {
+            return json(404, { error: 'ask_not_found' })
+          }
           if (!state.pool.some((c) => c.card_id === body.card_id)) {
             return json(404, { error: 'card_not_found', hint: 'Refresh the pool.' })
           }
-          if (!state.openAskIds.includes(body.ask_id)) {
-            return json(404, { error: 'ask_not_found' })
+          if (!state.profile) {
+            return json(403, { error: 'no_profile', hint: 'Your profile IS the card the other side sees — create it first.' })
+          }
+          if (state.proposals.length >= OUTBOUND_CAP) {
+            return json(409, { error: 'proposal_cap', open_outbound: state.proposals.length })
           }
           if (state.proposals.some((p) => p.card_id === body.card_id)) {
             return json(409, { error: 'already_proposed' })
           }
           if (state.overProposedCardIds.includes(body.card_id)) {
             return json(409, { error: 'target_busy' })
-          }
-          if (state.proposals.length >= OUTBOUND_CAP) {
-            return json(409, { error: 'proposal_cap', open_outbound: state.proposals.length })
           }
           state.proposals.push({
             card_id: body.card_id,
@@ -173,7 +190,7 @@ export async function startMockApi(): Promise<MockApi> {
             },
             profile: state.profile ? { body: state.profile, approved_at: '2026-07-05T00:00:00Z' } : null,
             snippets: state.snippets.map((s) => ({ body: s, created_at: '2026-07-05T00:00:00Z' })),
-            asks: state.asks.map((need) => ({ need, status: 'open', created_at: '2026-07-05T00:00:00Z' })),
+            asks: state.asks.map((need, i) => ({ id: `a${i + 1}`, need, status: 'open', created_at: '2026-07-05T00:00:00Z' })),
           })
         case 'GET /api/intros/pending':
           if (!authed) return json(401, { error: 'unauthorized' })
