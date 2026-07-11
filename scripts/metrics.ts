@@ -65,8 +65,32 @@ const introsHeld = await one("select count(*) n from intros where status = 'held
 // would read ~100% and lie. Mutual yes (revealed) is the honest signal.
 const introsRevealed = await one("select count(*) n from intros where status = 'revealed'")
 const introsAccepted = introsRevealed
+// Founder-welcome mechanic (CEO ruling 2026-07-11): every activated user gets
+// a concierge intro to Matthew first. Those are the feedback channel, not the
+// product working — GATE lines count peer-to-peer only; founder intros get
+// their own line. Founder resolved by email (FOUNDER_EMAIL to override); if
+// he's absent (or deleted — sides go null) nothing is excluded, honestly.
+const founderEmail = process.env.FOUNDER_EMAIL ?? 'matthew.williams949@gmail.com'
+const founderId =
+  (await db.query<{ id: string }>('select id from users where email = $1', [founderEmail])).rows[0]?.id ?? null
+const oneP = async (sql: string, params: unknown[]): Promise<number> =>
+  Number((await db.query(sql, params)).rows[0]?.n ?? 0)
+const founderCond = `exists (select 1 from intros i where i.id::text = e.metadata->>'intro_id'
+       and (i.user_a = $1 or i.user_b = $1))`
 // Both sides messaged in-thread (≥1 each) — the gate-4 "real exchange" signal.
-const exchanges = await one("select count(*) n from events where type = 'thread_connected'")
+// Peer-to-peer only: exchanges on a founder intro are counted separately below.
+const exchanges = founderId
+  ? await oneP(`select count(*) n from events e where e.type = 'thread_connected' and not ${founderCond}`, [founderId])
+  : await one("select count(*) n from events where type = 'thread_connected'")
+const founderIntros = founderId
+  ? await oneP(
+      "select count(*) n from intros where (user_a = $1 or user_b = $1) and status not in ('held', 'vetoed')",
+      [founderId],
+    )
+  : 0
+const founderExchanges = founderId
+  ? await oneP(`select count(*) n from events e where e.type = 'thread_connected' and ${founderCond}`, [founderId])
+  : 0
 
 const bySource = (
   await db.query<{ source: string | null; n: string }>(
@@ -95,7 +119,11 @@ console.log(`ACTIVATION  users: ${users} · activated (profile + ≥1 snippet): 
 console.log(`            snippets: ${snippets} · open asks: ${openAsks}`)
 console.log(`INTROS      proposed (delivered): ${introsProposed} · accepted — both said yes (revealed): ${introsAccepted} (${pct(introsAccepted, introsProposed)} of proposed)` +
   (introsHeld > 0 ? ` · ${introsHeld} held awaiting review` : ''))
-console.log(`EXCHANGE    real exchanges (both sides messaged): ${exchanges}`)
+console.log(`EXCHANGE    real exchanges, peer-to-peer (both sides messaged): ${exchanges}`)
+console.log(
+  `FOUNDER     welcome intros (feedback channel, excluded from gates): ${founderIntros} · exchanges with founder: ${founderExchanges}` +
+    (founderId ? '' : '  (founder profile not found — nothing excluded)'),
+)
 console.log(`\nAttribution (users.source):`)
 for (const r of bySource) console.log(`  ${r.source ?? '(none)'}: ${r.n}`)
 if (bySource.length === 0) console.log('  (no users yet)')
@@ -108,4 +136,4 @@ console.log(`\nGates (SCOPE.md — calibrate week 1, then frozen):
   Launch (+4 wks):     ≥150 installs                                 → now: ${fmt(npm.total)}
                        ≥40% activation of installs                   → now: ${pct(activated, Math.max(npm.total, 0))}
                        ≥10 intros proposed, ≥50% accepted            → now: ${introsProposed} proposed, ${pct(introsAccepted, introsProposed)} accepted
-                       ≥3 revealed pairs with a real exchange        → now: ${exchanges}`)
+                       ≥3 revealed pairs with a real exchange        → now: ${exchanges} (peer-to-peer only; founder excluded)`)
