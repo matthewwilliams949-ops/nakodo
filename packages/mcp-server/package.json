@@ -1,6 +1,6 @@
 {
   "name": "nakodo",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "mcpName": "dev.nakodo/nakodo",
   "description": "Nakodo makes your coding agent your networker: find a collaborator, co-founder, or someone to help with design, code, marketing, or distribution — matched privately on what you're actually building. No feed, no faces; the only output is an introduction.",
   "type": "module",
