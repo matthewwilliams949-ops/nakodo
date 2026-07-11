@@ -175,7 +175,7 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - [x] Prod: `pnpm db:apply` applied; merged + deployed (2026-07-09); full v1.1 flow verified against prod via API (email-less register → profile → pending → intro card page → accept/accept → 409 pre-reveal contact guard → contact exchange → counterpart sees it → delete → 401); verification rows + events cleaned (1 real user remains: Matthew)
 - [x] Launch posts drafted with co-founder/collaborator framing (Matthew's positioning call vs. Boardy's funding framing): documentation/launch-posts.md — r/mcp first, then r/SideProject, Show HN wk 2, PH later; public replies only, no DMs
 - [x] ~~npm publish 0.1.0~~ published 2026-07-10 (Matthew, security-key flow)
-- [ ] **npm publish 0.1.1 — needs Matthew (security key):** batches the perspective-led tool descriptions + `mcpName` registry marker + anything the e2e walkthrough surfaces. `cd packages/mcp-server && npm publish` in HIS terminal (browser 2FA prompt appears mid-command). Publish BEFORE post #1
+- [ ] ~~npm publish 0.1.1~~ **superseded by 0.2.0 (M8 folded the tool descriptions + `mcpName` marker into the seed build — one publish, not two). npm publish 0.2.0 — needs Matthew (security key):** `cd packages/mcp-server && npm publish` in HIS terminal (browser 2FA prompt appears mid-command). Publish BEFORE post #1, after his live gut-check
 - [ ] After publish: `npx -y nakodo@latest` smoke against prod, then Matthew posts #1 (r/mcp) — seed clock starts that day
 
 ### M8 — agent-driven matching (the seed build) · timebox: 4 build-days, then ship regardless
