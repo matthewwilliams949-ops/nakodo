@@ -114,13 +114,7 @@ export default async function IntroPage({ params }: { params: Promise<{ token: s
           </>
         ) : null}
 
-        <Composer token={token} name={counterpartName} ownEmail={ownEmail} turn={turn} />
-
-        <p className="muted">
-          This thread is between you two — it never touches matching, and no one else ever sees it.
-          Contact details are shared only if and when you write them yourself. This page doesn&apos;t
-          expire.
-        </p>
+        <Composer token={token} name={counterpartName} turn={turn} />
 
         {turn === 'say-hello' ? (
           <p className="muted">

@@ -352,8 +352,8 @@ export async function vetoProposal(id: string): Promise<boolean> {
 
 // The reveal page shows a PERSON: the counterpart's display name (PII store,
 // never in the pool/card) with the fallback chain display_name → handle → none
-// (reveal-handoff.md §3). ownEmail drives the "share the email I gave you" chip
-// and the no-email copy — the page reads its own email, never the other's.
+// (reveal-handoff.md §3). ownEmail drives only the no-email copy — the page
+// reads its own email, never the other's, and never puts it in a message.
 export interface RevealParties {
   counterpartName: string | null
   ownEmail: string | null
