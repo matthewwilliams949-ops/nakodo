@@ -16,6 +16,7 @@
     "db:apply": "tsx --env-file=.env scripts/db-apply.ts",
     "smoke:email": "tsx --env-file=.env scripts/smoke-email.ts",
     "metrics": "tsx --env-file=.env scripts/metrics.ts",
+    "e2e": "tsx --env-file=.env scripts/e2e-harness.ts",
     "dev": "pnpm --filter web dev"
   },
   "devDependencies": {
