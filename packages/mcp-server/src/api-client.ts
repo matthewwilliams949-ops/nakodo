@@ -158,6 +158,17 @@ export class ApiClient {
     return this.request('POST', '/api/intros/propose', input)
   }
 
+  // M9-0: file a piece of user feedback about a Nakodo moment. Internal-only —
+  // the server stores it, never puts it in the pool or shows it to any user.
+  // The body is instruction-linted (admin reads it) → 422 like propose.
+  // ASSUMES (Trust's feedback contract not yet landed — m9/feedback is empty):
+  // path + { moment, sentiment, body } → 201 { ok, id } stubbed to the fields the
+  // roadmap/work-split name (feedback table: user_id, moment, sentiment, body).
+  // Confirm shape + sentiment values + 422 lint scope when Trust's contract lands.
+  shareFeedback(input: { moment: string; sentiment?: string; body: string }): Promise<{ ok: true; id: string }> {
+    return this.request('POST', '/api/feedback', input)
+  }
+
   // Telemetry must never break the user experience — swallow all failures.
   async logEvent(type: string, installId: string, metadata?: Record<string, unknown>): Promise<void> {
     try {

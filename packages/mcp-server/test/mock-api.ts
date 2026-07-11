@@ -34,6 +34,9 @@ export interface MockState {
   proposals: { card_id: string; ask_id: string; why_for_them: string; why_for_me: string }[]
   // Cards whose target can't receive a proposal right now → propose returns 409 target_busy.
   overProposedCardIds: string[]
+  // M9-0: feedback notes filed via share_feedback. Internal-only in the real
+  // backend (never in the pool); here just recorded so tests can assert.
+  feedback: { moment: string; sentiment?: string; body: string }[]
 }
 
 const TEST_TOKEN = 'test-token-1234'
@@ -71,6 +74,7 @@ export async function startMockApi(): Promise<MockApi> {
     pool: [],
     proposals: [],
     overProposedCardIds: [],
+    feedback: [],
   }
 
   const server: Server = createServer((req, res) => {
@@ -101,6 +105,20 @@ export async function startMockApi(): Promise<MockApi> {
         case 'POST /api/events':
           state.events.push({ type: body.type, install_id: body.install_id })
           return json(201, { ok: true })
+        case 'POST /api/feedback': {
+          if (!authed) return json(401, { error: 'unauthorized' })
+          // Instruction-lint the body (admins read it). Minimal stand-in; the
+          // real lint is apps/web/lib/pii-lint.ts's instruction check.
+          if (/ignore (all |the )?(previous|prior|above)\s+instructions|<\/?(system|assistant)>|(^|\n)\s*system\s*:/i.test(body.body ?? '')) {
+            return json(422, {
+              error: 'pii_detected',
+              flags: ['instruction'],
+              findings: [{ flag: 'instruction', excerpt: String(body.body ?? '').slice(0, 60) }],
+            })
+          }
+          state.feedback.push({ moment: body.moment, sentiment: body.sentiment, body: body.body })
+          return json(201, { ok: true, id: `f${state.feedback.length}` })
+        }
         case 'POST /api/profile': {
           if (!authed) return json(401, { error: 'unauthorized' })
           const pii = mockPiiCheck(body.body ?? '')
