@@ -7,7 +7,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { PGlite } from '@electric-sql/pglite'
 import { setDb } from '../lib/db'
 import { setEmailSender, type Email } from '../lib/email'
-import { createIntro, findIntroByToken, getRevealParties, threadTurn } from '../lib/intros'
+import { createIntro, findIntroByToken, getIntroMessages, getRevealParties, threadTurn } from '../lib/intros'
 import { POST as register } from '../app/api/register/route'
 import { POST as postProfile } from '../app/api/profile/route'
 import { POST as postSnippet } from '../app/api/snippets/route'
@@ -455,6 +455,19 @@ describe('M8 completion loop — thread lifecycle, events, notices, copy', () =>
     await message(tokenA, 'A back') // crosses to B
     expect(sentEmails).toHaveLength(2)
     expect(sentEmails[1]!.to).toBe('b@example.com')
+  })
+
+  // Regression pin (2026-07-11): thread order is INSERTION order. created_at
+  // collides at microsecond speed and the uuid tiebreak is random — before the
+  // seq column this scrambled threads and double-fired the nudge above.
+  it('thread order is insertion order, even when messages land in the same microsecond', async () => {
+    const { tokenA, tokenB } = await revealed()
+    const bodies = ['a1', 'a2', 'b1', 'a3', 'b2', 'b3', 'a4', 'b4']
+    for (const b of bodies) await message(b.startsWith('a') ? tokenA : tokenB, b)
+    const introId = (await pg.query<{ id: string }>('select id from intros')).rows[0]!.id
+    const thread = await getIntroMessages(introId)
+    expect(thread.map((m) => m.body)).toEqual(bodies)
+    expect(thread.map((m) => m.side)).toEqual(bodies.map((b) => b[0]))
   })
 
   it('pending endpoint reports the lifecycle state per side, and only when the ball is in your court', async () => {
