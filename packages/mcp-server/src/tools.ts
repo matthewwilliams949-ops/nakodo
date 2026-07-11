@@ -514,8 +514,7 @@ export function registerTools(server: McpServer): void {
         body: z.string().min(1).max(4000).describe('The feedback note, exactly as the user approved it.'),
         sentiment: z
           .enum(['positive', 'neutral', 'negative', 'mixed'])
-          .optional()
-          .describe('Optional overall tone of the reaction.'),
+          .describe('The overall tone of the reaction. Required — you drafted the note, so name its tone.'),
         approved: z
           .boolean()
           .describe('Must be true, and only after the user has seen and approved the exact body text. Feedback is never filed otherwise.'),

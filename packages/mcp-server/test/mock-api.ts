@@ -110,6 +110,11 @@ export async function startMockApi(): Promise<MockApi> {
           return json(201, { ok: true })
         case 'POST /api/feedback': {
           if (!authed) return json(401, { error: 'unauthorized' })
+          // Contract: moment, sentiment, and body are all required (sentiment is a
+          // not-null enum column) — a missing one is 400, never a lax accept.
+          if (!body.moment || !body.sentiment || !body.body) {
+            return json(400, { error: 'invalid_body' })
+          }
           if (state.feedbackRateLimited) return json(429, { error: 'rate_limited', retry_after: 3600 })
           // Instruction-lint the body ONLY (admins read it; identity is allowed —
           // "the link on nakodo.dev broke" is legit). Real lint: lib/pii-lint.ts.
