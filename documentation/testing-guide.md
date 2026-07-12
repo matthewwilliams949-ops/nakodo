@@ -13,7 +13,7 @@ Local-only (binds 127.0.0.1, never deployed). One page:
 
 - **Pool** — every user on the target DB: real users, e2e personas, onboarding test users, with profile/snippet/ask counts. `Seed 4 personas` / `Cleanup e2e rows`.
 - **Send yourself a match** — one click stages an inbound intro persona → you through the real concierge path (`createIntro`), so the card **email actually fires** if you have an address on record.
-- **Intros** — every intro with status and per-side responses. The buttons act **as the persona** (Accept / Decline / Reply) or **as admin** (Approve a held proposal, releasing it to its target). Your own side never has buttons: you experience it the way a user does — email, agent, intro page.
+- **Intros** — every intro with status and per-side responses. The buttons act **as the persona** (Accept / Decline / Reply). Since m9e (2026-07-12) proposals deliver **directly** — they no longer wait in `held` — so the admin **Approve** button appears only in the rare case a proposal was held via the emergency brake. Your own side never has buttons: you experience it the way a user does — email, agent, intro page.
 - **Onboarding runs** — resets/deletes the sandbox identity (below).
 
 Principle: **the panel drives the counterparty and the admin; you play yourself.**
@@ -30,12 +30,12 @@ Principle: **the panel drives the counterparty and the admin; you play yourself.
 ## Recipe 2 — propose a match (the outbound experience)
 
 1. Seed personas, then in **your own agent session**: "find me someone who…" (phrase it to fit a persona). The agent searches the pool, shows cards, and proposes on your go.
-2. The proposal lands **held** (seed-phase quality floor). In the panel it appears with an **Approve** button — that's the admin review; approving releases the card to the persona.
+2. Since m9e (2026-07-12) the proposal **delivers directly** — no human-review step. The persona gets the card immediately (its email fires if it has an address); in the panel the intro shows `proposed`, no Approve needed. (The `held`→Approve path still exists as an emergency brake, off by default — see the panel note.)
 3. `Accept as <persona>` → reveal (proposing was your yes, so one accept completes it). Continue as in recipe 1.
 
 ## Recipe 3 — onboarding loop (fresh user, repeatable, ~2 min per run)
 
-`~/Personal/Nakodo testing` is a standalone sandbox workspace — deliberately **outside the repo**, so an onboarding session never sits on top of the codebase and can't drift into "fixing" Nakodo. Its `.mcp.json` runs the **published npm package** with `NAKODO_CONFIG_DIR` pointed at a scratch identity (`~/.config/nakodo-e2e-user`) — onboarding runs there can never touch your real account. The folder carries founder-voice context (`CLAUDE.md`, `PROJECT.md`, `progress-log.md`) so the agent can draft a realistic Nakodo-builder profile from what it "knows", the way a real user's agent would — refresh `progress-log.md` occasionally so profiles stay current.
+`~/Personal/Nakodo testing` is a standalone sandbox workspace — deliberately **outside the repo**, so an onboarding session never sits on top of the codebase and can't drift into "fixing" Nakodo. Its `.mcp.json` runs the nakodo client with `NAKODO_CONFIG_DIR` pointed at a scratch identity (`~/.config/nakodo-e2e-user`) — onboarding runs there can never touch your real account. **Two modes:** point `command`/`args` at `npx -y nakodo` to test the **published** artifact (the real install experience), or at the local build (`node <repo>/packages/mcp-server/dist/index.js`, after `pnpm build` in that package) to test **unreleased** client changes before publishing. Either way the client targets prod (`https://nakodo.dev`) by default. The folder carries founder-voice context (`CLAUDE.md`, `PROJECT.md`, `progress-log.md`) so the agent can draft a realistic Nakodo-builder profile from what it "knows", the way a real user's agent would — refresh `progress-log.md` occasionally so profiles stay current.
 
 1. Panel: `Reset fresh-user identity`.
 2. New session in `~/Personal/Nakodo testing`. Say what a stranger would: *"find me someone who could give feedback on what I'm building."* The agent should draft the profile from the folder's context — judge the cold onboarding: per-word approval, no name/links in the profile, optional email.
@@ -46,7 +46,7 @@ Tip: give the sandbox user `you+test@gmail.com` (plus-alias) if the run should e
 
 ## Full agent-side e2e (the real product, no shortcuts)
 
-Recipe 3 → capture a snippet → recipe 2 driven from the sandbox session. That covers install (`npx` pulls the published package — it IS the artifact test) → onboard → search → propose → held → approve → accept → reveal → thread → feedback (`share_feedback` after a reveal) → `delete me`. If any step needs the counterparty, the panel is standing next to you.
+Recipe 3 → capture a snippet → recipe 2 driven from the sandbox session. That covers install (published package = the artifact test; or the local build for pre-publish client changes) → onboard → search → propose → **deliver** → accept → reveal → thread → feedback (`share_feedback` after a reveal) → `delete me`. If any step needs the counterparty, the panel is standing next to you.
 
 ## Hygiene (non-negotiable)
 
@@ -60,7 +60,7 @@ Recipe 3 → capture a snippet → recipe 2 driven from the sandbox session. Tha
 
 ```
 pnpm e2e seed|status|match|accept <tok>|decline <tok>|say <tok> "msg"|cleanup
-pnpm --filter web intro:review list|approve <id>|veto <id>
+pnpm --filter web intro:review list|approve <id>|veto <id>   # emergency brake only — proposals deliver directly by default
 pnpm --filter web intro:send <spec.json>
 pnpm feedback        # admin digest of share_feedback rows
 ```
