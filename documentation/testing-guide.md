@@ -35,10 +35,10 @@ Principle: **the panel drives the counterparty and the admin; you play yourself.
 
 ## Recipe 3 — onboarding loop (fresh user, repeatable, ~2 min per run)
 
-The `Nakodo testing/` folder in the repo is a sandbox workspace: its `.mcp.json` runs the **published npm package** with `NAKODO_CONFIG_DIR` pointed at a scratch identity (`~/.config/nakodo-e2e-user`) — onboarding runs there can never touch your real account.
+`~/Personal/Nakodo testing` is a standalone sandbox workspace — deliberately **outside the repo**, so an onboarding session never sits on top of the codebase and can't drift into "fixing" Nakodo. Its `.mcp.json` runs the **published npm package** with `NAKODO_CONFIG_DIR` pointed at a scratch identity (`~/.config/nakodo-e2e-user`) — onboarding runs there can never touch your real account. The folder carries founder-voice context (`CLAUDE.md`, `PROJECT.md`, `progress-log.md`) so the agent can draft a realistic Nakodo-builder profile from what it "knows", the way a real user's agent would — refresh `progress-log.md` occasionally so profiles stay current.
 
 1. Panel: `Reset fresh-user identity`.
-2. New session in `agent-networker/Nakodo testing`. Say what a stranger would: *"find me someone who could give feedback on what I'm building."* Judge the cold onboarding: profile drafted from what you tell it, per-word approval, no name/links in the profile, optional email.
+2. New session in `~/Personal/Nakodo testing`. Say what a stranger would: *"find me someone who could give feedback on what I'm building."* The agent should draft the profile from the folder's context — judge the cold onboarding: per-word approval, no name/links in the profile, optional email.
 3. Watch the new user appear in the panel's Pool table.
 4. Panel: `Delete test user (server + local)` — deletes via the user's own token (the guarantee-5 path), then clears the local identity. Repeat as often as you like.
 

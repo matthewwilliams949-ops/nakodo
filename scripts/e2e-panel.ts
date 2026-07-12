@@ -197,7 +197,7 @@ const PAGE = `<!doctype html><meta charset="utf-8"><title>Nakodo e2e panel</titl
 <h2>Onboarding runs <span class="muted">(sandbox identity — never your real account)</span></h2>
 <div id="onboard"></div>
 <div class="muted" style="margin-top:6px">
-  Loop: <b>Reset</b> → new session in <code>agent-networker/Nakodo testing</code> → say "find me someone…" and onboard →
+  Loop: <b>Reset</b> → new session in <code>~/Personal/Nakodo testing</code> → say "find me someone…" and onboard →
   watch the user appear above → <b>Delete test user</b> → repeat.
 </div>
 
