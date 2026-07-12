@@ -72,6 +72,11 @@ const NOTICE_SENTENCE: Record<PendingState, string> = {
 // A new person outranks an ongoing thread (design brief §5).
 const NOTICE_ORDER: PendingState[] = ['card', 'say_hello', 'message_waiting']
 
+// Launch-eve finding: an agent relaying intro news summarized the URL away and
+// stranded the user — the page behind the link is the only place they can act.
+const LINK_VERBATIM =
+  'Give the user each link above exactly as written — the page behind it is the only place they can act. Never summarize a link away or replace it with a description.'
+
 // The add-email re-offer for no-email users — appended once, only when there is
 // a reveal-side action pending (design brief §4.3/§5). Never on a plain `card`.
 const EMAIL_REOFFER =
@@ -91,6 +96,7 @@ async function pendingNotice(): Promise<string> {
       blocks.push([NOTICE_SENTENCE[state], ...urls].join('\n'))
     }
     if (blocks.length === 0) return ''
+    blocks.push(LINK_VERBATIM)
 
     // Whether to float the add-email re-offer. Prefer the endpoint's authoritative
     // has_email; the live P3 pending endpoint omits it, so fall back to the email
@@ -293,7 +299,9 @@ export function registerTools(server: McpServer): void {
         return text(
           `Proposed and held for a quick quality review, then delivered to that person as an anonymous card — they'll accept or decline. ` +
             `If they pass, the user never learns it was them; if both say yes, an introduction opens and the two of them exchange contact details themselves. ` +
-            `The user now has ${res.open_outbound} of 2 proposals open. This tool will announce here when there's news.` +
+            `The user now has ${res.open_outbound} of 2 proposals open. This tool will announce here when there's news. ` +
+            `Until it does, there is nothing to check and nothing to report: an outbound proposal's status is invisible by design (a decline never announces itself). ` +
+            `If the user asks how it's going, the honest answer is "no news yet" — never state or guess what's happening on the other side.` +
             (await pendingNotice()),
         )
       } catch (err) {

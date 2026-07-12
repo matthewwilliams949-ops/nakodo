@@ -222,6 +222,10 @@ describe('nakodo over stdio', () => {
     })
     expect(out).toContain('held')
     expect(out).toContain('1 of 2 proposals open')
+    // 0.2.3 finding: an agent stated unverifiable outbound status as fact
+    // ("still pending on their side") — the honesty clause is load-bearing
+    expect(out).toContain('invisible by design')
+    expect(out).toContain('no news yet')
     expect(api.state.proposals).toHaveLength(1)
     expect(api.state.proposals[0]).toMatchObject({ card_id: 'c1', ask_id: poolAskId })
   })
@@ -367,6 +371,9 @@ describe('nakodo over stdio', () => {
     const out = await callText('my_record')
     expect(out).toContain('introduction is waiting')
     expect(out).toContain('http://x/intro/tok-1')
+    // 0.2.3 finding: an agent summarized the intro URL away and stranded the
+    // user — every notice carries the links-verbatim instruction
+    expect(out).toContain('exactly as written')
     api.state.pendingIntros = []
     const quiet = await callText('my_record')
     expect(quiet).not.toContain('introduction is waiting')
