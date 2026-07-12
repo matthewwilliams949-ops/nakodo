@@ -4,7 +4,10 @@
   "type": "module",
   "packageManager": "pnpm@10.32.1",
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "sharp"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
   },
   "engines": {
     "node": ">=20"
@@ -19,7 +22,8 @@
     "e2e": "tsx --env-file=.env scripts/e2e-harness.ts",
     "sweep": "tsx --env-file=.env scripts/launch-sweep.ts",
     "feedback": "tsx --env-file=.env scripts/feedback.ts",
-    "dev": "pnpm --filter web dev"
+    "dev": "pnpm --filter web dev",
+    "e2e:panel": "tsx --env-file=.env scripts/e2e-panel.ts"
   },
   "devDependencies": {
     "pg": "^8.16.0",
