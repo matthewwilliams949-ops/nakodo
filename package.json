@@ -16,7 +16,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "check": "pnpm -r typecheck && pnpm -r test",
+    "check": "pnpm run lint:conflicts && pnpm -r typecheck && pnpm -r test",
+    "lint:conflicts": "if git grep -nE '^(<<<<<<<|>>>>>>>) ' -- '*.ts' '*.tsx' '*.sql' '*.md' '*.json'; then echo 'ERROR: git conflict markers found (see above)' >&2; exit 1; fi",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "db:apply": "tsx --env-file=.env scripts/db-apply.ts",

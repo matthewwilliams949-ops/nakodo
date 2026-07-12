@@ -226,6 +226,84 @@ await db.end()
 const npm = await npmDownloads()
 const stars = await githubStars()
 
+// --json: the single machine-readable read layer for every agent's dashboard
+// (CTO dashboard ruling 2026-07-12). Stable keys, aggregates ONLY — the
+// founder-welcome roster (handles/locations) is deliberately absent so a
+// dashboard built on this needs no PII scrub. Dashboards are VIEWS over this;
+// nobody hand-rolls SQL for a gate-adjacent number. Version the shape so a
+// consumer can detect a change (bump schema_version on any key change).
+if (process.argv.includes('--json')) {
+  const rate = (a: number, b: number): number | null => (b > 0 ? Math.round((a / b) * 1000) / 1000 : null)
+  const hours = (s: string): number | null => (s === '—' ? null : Number(s.replace('h', '')))
+  const nz = (v: number): number | null => (v < 0 ? null : v) // npm API down → null, not -1
+  const installs = nz(npm.total)
+  const doc = {
+    schema_version: 1,
+    generated_at: new Date().toISOString(),
+    install: {
+      npm_downloads_total: installs,
+      npm_downloads_last_week: nz(npm.lastWeek),
+      github_stars: stars,
+    },
+    activation: {
+      users,
+      activated,
+      activation_rate_of_users: rate(activated, users),
+      activation_rate_of_installs: installs === null ? null : rate(activated, installs),
+      snippets,
+      open_asks: openAsks,
+    },
+    intros: {
+      proposed_delivered: introsProposed,
+      accepted_revealed: introsAccepted,
+      held_awaiting_review: introsHeld,
+      accept_rate: rate(introsAccepted, introsProposed),
+    },
+    exchange: {
+      real_peer_to_peer: exchanges,
+      founder_welcome_intros: founderIntros, // excluded from the gate, shown separately
+      founder_welcome_exchanges: founderExchanges,
+    },
+    latency: {
+      proposed_to_card_seen_median_hours: hours(seenLatency),
+      proposed_to_response_median_hours: hours(responseLatency),
+      card_seen_by_channel: seenByChannel.map((r) => ({
+        via: r.via,
+        n: r.n,
+        median_hours: Math.round(Number(r.h) * 10) / 10,
+      })),
+    },
+    circle: {
+      rematches_proposed: rematchesProposed,
+      rematches_reconnected: rematchesReconnected,
+    },
+    attribution: bySource.map((r) => ({ source: r.source, n: Number(r.n) })),
+    events_7d: eventsWeek.map((r) => ({ type: r.type, n: Number(r.n) })),
+    gates: {
+      seed: {
+        installs_target: 25,
+        installs,
+        activation_target: 0.4,
+        activation_rate: installs === null ? null : rate(activated, installs),
+      },
+      launch: {
+        installs_target: 150,
+        installs,
+        activation_target: 0.4,
+        activation_rate: installs === null ? null : rate(activated, installs),
+        intros_proposed_target: 10,
+        intros_proposed: introsProposed,
+        accept_rate_target: 0.5,
+        accept_rate: rate(introsAccepted, introsProposed),
+        real_exchanges_target: 3,
+        real_exchanges: exchanges,
+      },
+    },
+  }
+  console.log(JSON.stringify(doc, null, 2))
+  process.exit(0)
+}
+
 const pct = (a: number, b: number) => (b === 0 ? '—' : `${Math.round((a / b) * 100)}%`)
 const fmt = (v: number) => (v < 0 ? 'n/a' : String(v))
 
