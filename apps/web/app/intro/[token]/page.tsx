@@ -23,7 +23,13 @@ function formatDay(d: string | Date): string {
 // the other party is indistinguishable from waiting (trust rule 4). After a
 // mutual yes it becomes the handoff: it must make obvious that a PERSON, not
 // the platform, is now on the other side (reveal-handoff.md §1).
-export default async function IntroPage({ params }: { params: Promise<{ token: string }> }) {
+export default async function IntroPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>
+  searchParams: Promise<{ via?: string }>
+}) {
   const { token } = await params
   const found = await findIntroByToken(token)
 
@@ -47,7 +53,11 @@ export default async function IntroPage({ params }: { params: Promise<{ token: s
   // Known noise: email-client link prefetchers can trigger it — treat the
   // metric as an upper bound on noticing speed.
   if (view === 'card') {
-    await logEvent({ type: 'card_viewed', metadata: { intro_id: intro.id, side } })
+    // via = which notification channel delivered this view (whitelist — the
+    // query string is caller-controlled text, never stored raw).
+    const rawVia = (await searchParams).via
+    const via = rawVia === 'email' || rawVia === 'telegram' || rawVia === 'session' ? rawVia : undefined
+    await logEvent({ type: 'card_viewed', metadata: { intro_id: intro.id, side, ...(via ? { via } : {}) } })
   }
 
   if (view === 'expired') {

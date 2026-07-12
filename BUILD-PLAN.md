@@ -173,6 +173,11 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - [ ] Safety co-review (chat-id = PII; requested 2026-07-12) → CTO merge gate
 - [ ] Matthew: BotFather bot + 3 env vars in .env/Vercel + `pnpm telegram:setup` + smoke (SETUP-ACCOUNTS.md §8) — can land any time after merge; channel stays off until then
 
+**Onboarding arc — "commissioning a search"** *(Matthew's brief 2026-07-12: onboarding must demonstrate the agent knows you + end with an explicit how-you'll-hear tie; strategy: `documentation/onboarding-first-connection.md`)*
+- [x] BUILT (Activation, 2026-07-12, `m9a2/onboarding-arc`, STACKED on `m9d/telegram` — merges after/with it): onboarding guidance reframed as commissioned search (match-hypothesis beat: agent names the TYPE of person + why, agreed version becomes the ask; first snippet drafted from the live session → activation metric closes inside onboarding; completion contract: what arrives next + honest timing + channel question incl. connect_telegram, asked once, never pushed); create_profile return copy reinforces the arc; card links tagged `?via=email|telegram|session` → `card_viewed` attribution → `pnpm metrics` card-seen-by-channel split. New beats protocol-test-pinned. 112 web + 35 MCP green. No PII/guarantee surface touched (no Safety co-review; CTO to sanity-check that call)
+- [ ] Acquisition consult ping sent (first-session experience ≈ install promise boundary) — non-blocking unless they object
+- [ ] Ops (no code): founder-welcome pass = same-day loop during seed window; watch card-seen-by-channel daily
+
 **Seed-window ops tooling *(small, post-0.2.2, only if the manual loop proves unreliable)*:**
 - [ ] **Founder-welcome pre-draft helper.** Today the trigger is surfaced (`pnpm metrics` ▶ FOUNDER-WELCOME PASS lists activated users with no founder intro) and the send is manual (`pnpm intro:send`, warmth-by-hand — deliberate). If that manual loop starts missing people at volume, build a helper that lists un-welcomed activations AND pre-drafts each founder card from their record, leaving Matthew to edit+send. Human stays in the loop; kills the silent-miss risk. Trigger to build: a missed founder-welcome is observed, or activations outpace the ≤30-min/week concierge budget. Do NOT auto-send (kills the warmth that is the whole point).
 

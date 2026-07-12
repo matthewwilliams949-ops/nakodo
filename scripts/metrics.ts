@@ -154,6 +154,24 @@ const responseLatency = await medianHours(`
   where r.responded is not null
     and i.created_at > now() - interval '14 days' and i.status not in ('held', 'vetoed')`)
 
+// Card-seen split by notification channel: card links carry a whitelisted
+// ?via= tag (email / telegram / session; untagged = old links or direct visits)
+// and card_viewed records it. Attribution goes to the channel of the FIRST
+// view per intro — the question is which knock gets the card noticed.
+const seenByChannel = (
+  await db.query<{ via: string; n: number; h: string }>(`
+  select coalesce(s.via, 'untagged') as via, count(*)::int as n,
+    percentile_cont(0.5) within group (order by extract(epoch from s.first_seen - i.created_at) / 3600) as h
+  from intros i
+  join lateral (
+    select e.created_at as first_seen, e.metadata->>'via' as via from events e
+    where e.type = 'card_viewed' and e.metadata->>'intro_id' = i.id::text
+    order by e.created_at asc limit 1
+  ) s on true
+  where i.created_at > now() - interval '14 days' and i.status not in ('held', 'vetoed')
+  group by 1 order by 2 desc`)
+).rows
+
 // M9b CIRCLE line: the retention backbone — rematches proposed by agents
 // (client_rematch_proposed, metadata { ask_id, card_ids }: fired via
 // /api/events, hence the client_ prefix) vs. reconnects that landed in an old
@@ -223,6 +241,11 @@ console.log(`INTROS      proposed (delivered): ${introsProposed} · accepted —
 console.log(`EXCHANGE    real exchanges (peer-to-peer, both sides messaged): ${exchanges}` +
   (founderId ? `  ·  founder-welcome (excluded from gate): ${founderIntros} intros, ${founderExchanges} exchanges` : ''))
 console.log(`LATENCY     median proposed→card-seen: ${seenLatency} · proposed→response: ${responseLatency}  (14-day window, per side)`)
+if (seenByChannel.length > 0)
+  console.log(
+    `            card-seen by channel (first view per intro): ` +
+      seenByChannel.map((r) => `${r.via} ${Number(r.h).toFixed(1)}h (n=${r.n})`).join(' · '),
+  )
 console.log(`CIRCLE      rematches proposed: ${rematchesProposed} · reconnected (message landed in an old thread): ${rematchesReconnected}`)
 if (founderId) {
   console.log(`\n▶ FOUNDER-WELCOME PASS — activated, no founder intro yet (send each via \`pnpm intro:send\`):`)

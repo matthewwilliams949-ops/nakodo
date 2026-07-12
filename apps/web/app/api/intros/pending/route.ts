@@ -45,7 +45,8 @@ export async function GET(req: Request): Promise<Response> {
       const own = side === 'a' ? r.a_response : r.b_response
       // The card page expires; the revealed page never does (viewFor).
       if (own === null && new Date(r.token_expires_at).getTime() > Date.now()) {
-        out.push({ url, state: 'card', created_at: r.created_at })
+        // ?via=session: card_viewed attributes which channel got the card seen.
+        out.push({ url: `${url}?via=session`, state: 'card', created_at: r.created_at })
       }
       continue
     }

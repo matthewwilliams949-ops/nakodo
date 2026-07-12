@@ -381,7 +381,9 @@ describe('intro flow', () => {
       intros: { url: string }[]
     }
     expect(forA.intros).toHaveLength(1)
-    const tokA = forA.intros[0]!.url.split('/intro/')[1]!
+    // card links carry channel attribution for the card_viewed latency split
+    expect(forA.intros[0]!.url).toContain('?via=session')
+    const tokA = forA.intros[0]!.url.split('/intro/')[1]!.split('?')[0]!
     const row = (await pg.query<{ token_a: string; token_b: string }>('select token_a, token_b from intros')).rows[0]!
     expect(tokA).toBe(row.token_a)
 
@@ -1452,7 +1454,8 @@ describe('M9d tier 2 — Telegram notify', () => {
     expect(sentTelegrams).toHaveLength(2)
     const dmA = sentTelegrams.find((m) => m.chatId === '1001')!
     expect(dmA.text).toContain('introduction is waiting')
-    expect(dmA.text).toContain(`/intro/${tokenA}`) // the page is where the card lives
+    expect(dmA.text).toContain(`/intro/${tokenA}?via=telegram`) // the page is where the card lives; via feeds the latency split
+    expect(sentEmails[0]!.text).toContain('?via=email')
     for (const dm of sentTelegrams) {
       expect(dm.text).not.toContain('Berlin') // no card content
       expect(dm.text).not.toContain('agent-memory')

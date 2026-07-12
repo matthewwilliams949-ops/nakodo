@@ -106,6 +106,13 @@ describe('nakodo over stdio', () => {
     // M9a: project-aware onboarding — anchor to one project before drafting
     expect(out).toContain('anchor to ONE project')
     expect(out).toContain('update the profile later when their focus changes')
+    // Onboarding-arc (2026-07-12): the four load-bearing beats of the
+    // commissioned-search frame — each one is product surface, not phrasing taste.
+    expect(out).toContain('commissioning a search') // the frame itself
+    expect(out).toContain('TYPE of person') // the agent proposes the match hypothesis
+    expect(out).toContain('capture_snippet') // first snippet drafted from THIS session
+    expect(out).toContain('connect_telegram') // the how-you'll-hear contract at completion
+    expect(out).toContain('never push') // channel offer stays a light, one-time ask
     expect(api.state.events.some((e) => e.type === 'client_front_door_unregistered' || e.type === 'front_door_unregistered')).toBe(true)
   })
 

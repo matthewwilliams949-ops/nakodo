@@ -84,13 +84,15 @@ export async function createIntro(input: {
   ] as const) {
     // Channels are independent, absence just skips (M9d rides the email
     // pattern); no channel at all = the agent surfaces the intro in-session.
+    // Card links carry ?via= so card_viewed can attribute which channel
+    // actually got the card seen (the latency leading indicator, per channel).
     const base = `${appUrl()}/intro/${token}`
     if (user.email) {
-      await sendEmail({ to: user.email, ...introCard(card, base) })
+      await sendEmail({ to: user.email, ...introCard(card, `${base}?via=email`) })
     }
     // Telegram DM lands on a lock screen: intro-waiting text only, never the card.
     if (user.telegram_chat_id) {
-      await notifyTelegram({ chatId: user.telegram_chat_id, text: tgIntroWaiting(base) })
+      await notifyTelegram({ chatId: user.telegram_chat_id, text: tgIntroWaiting(`${base}?via=telegram`) })
     }
   }
   await logEvent({ type: 'intro_proposed', metadata: { intro_id: id } })
@@ -389,12 +391,12 @@ export async function approveProposal(id: string): Promise<boolean> {
     const url = `${appUrl()}/intro/${intro.token_b}`
     const email = target.rows[0]?.email
     if (email) {
-      await sendEmail({ to: email, ...introCard(intro.card_b, url) })
+      await sendEmail({ to: email, ...introCard(intro.card_b, `${url}?via=email`) })
     }
     const chatId = target.rows[0]?.telegram_chat_id
     if (chatId) {
       // Lock-screen rule: the DM says an introduction waits — the card stays on the page.
-      await notifyTelegram({ chatId, text: tgIntroWaiting(url) })
+      await notifyTelegram({ chatId, text: tgIntroWaiting(`${url}?via=telegram`) })
     }
   }
   await logEvent({ type: 'intro_proposed', metadata: { intro_id: id, via: 'agent_approved' } })
