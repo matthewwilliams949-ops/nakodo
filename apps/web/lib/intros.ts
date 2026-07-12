@@ -280,7 +280,7 @@ async function notifyMessageWaiting(intro: IntroRow, targetSide: 'a' | 'b'): Pro
 
 export async function getIntroMessages(introId: string): Promise<IntroMessage[]> {
   const { rows } = await getDb().query<IntroMessage>(
-    'select id, side, body, created_at from intro_messages where intro_id = $1 order by created_at asc, id asc',
+    'select id, side, body, created_at from intro_messages where intro_id = $1 order by seq asc',
     [introId],
   )
   return rows
