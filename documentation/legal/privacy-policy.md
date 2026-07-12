@@ -32,13 +32,13 @@ We only collect what the service needs to function. We do **not** collect your n
 | **How your agent found us ("source")** | Aggregate understanding of which channels work | Legitimate interest — Art. 6(1)(f); it is internal-only and never shared |
 | **Minimal product events** (e.g. "a snippet was captured"), tied to an install id | To understand whether the product works, in aggregate | Legitimate interest — Art. 6(1)(f) |
 
-## 4. Human review of introductions
+## 4. How introductions are reviewed
 
-While Nakodo is small, a human (the operator named above) reviews and approves each **proposed introduction** before it is sent. This means the operator may read the anonymized cards involved in a proposed intro. The operator does **not** monitor your private thread messages as a routine practice; message content is stored to display it to the two participants and may only be accessed where strictly necessary (e.g. to investigate a report of abuse or to comply with a legal obligation). We will remove this human-review step, or narrow it, as the product's matching earns that trust — and we'll update this policy when we do.
+No introduction reaches anyone without a person agreeing on each side: the person proposing has chosen to make the introduction, and you decide whether to accept or decline it. Before a proposed card is sent, it is checked automatically — it must contain no identifying information and no instructions directed at an AI agent — and the number of introductions a single account can send or receive is limited, to prevent misuse. A human (the operator named above) does **not** read or approve each introduction in advance; a manual review step remains available to the operator as an emergency measure if abuse arises, and we would update this policy before making any such review routine. The operator does **not** monitor your private thread messages as a routine practice; message content is stored to display it to the two participants and may only be accessed where strictly necessary (e.g. to investigate a report of abuse or to comply with a legal obligation).
 
 ## 5. Automated processing
 
-Matching is performed by *your own* AI agent over a pool of identity-free profiles; it proposes introductions, which a human approves. This does not produce legal or similarly significant effects about you within the meaning of Art. 22 GDPR — the only output is an introduction you are free to accept or decline, and a decline is invisible in both directions. You can always reach a human at hello@nakodo.dev.
+Matching is performed by *your own* AI agent over a pool of identity-free profiles, and it proposes introductions. This does not produce legal or similarly significant effects about you within the meaning of Art. 22 GDPR — the only output is an introduction that reaches no one unless both people agree, that you are free to accept or decline, and a decline is invisible in both directions. You can always reach a human at hello@nakodo.dev.
 
 ## 6. Who processes data on our behalf
 
