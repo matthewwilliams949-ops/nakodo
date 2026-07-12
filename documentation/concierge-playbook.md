@@ -2,6 +2,8 @@
 
 *2026-07-09 · The weekly matching pass, operationalized. Sources: SCOPE.md trust rules + the KIEZ research (see kiezwerk-nuggets.md). Matching decisions are human; this is the standard the human holds.*
 
+**ADDENDUM 2026-07-12 (Matthew's call):** the manual approve step on agent proposals is REMOVED — agent-proposed intros deliver directly; server lint, the 2-outbound cap, and inbound dampening are the guard rails. What this changes here: (1) the quality bar in this playbook now lives in the agent guidance (the two-reason rule, mutual benefit, suggested first step) and in Activation's audit of `intro_proposed` events — not in a pre-send review; (2) **Matthew's daily seed-window job flips direction: answer inbound intros fast** (new users' agents propose to his card as their first send — his response latency IS their first impression), rather than drafting outbound welcome cards; `pnpm intro:send` remains for concierge intros, which are unchanged. The review CLI (`pnpm intro:review`) is an emergency brake, off by default.
+
 ## The bar
 
 **Rule #1 — over-invest in every user's FIRST introduction.** It's their activation moment: a mediocre first card kills them permanently, a brilliant one creates "who's next." While volume is low, hand-pick the single best available match for each new user even if it means they wait a few extra days. No intro beats a weak intro.

@@ -757,7 +757,7 @@ describe('propose endpoint (T5)', () => {
     why_for_me: 'Their eval experience validates the memory layer.',
   }
 
-  it('creates a held intro: server-assembled cards, invisible to the target, event-logged', async () => {
+  it('delivers directly (2026-07-12: review removed): server-assembled cards, target notified now, event-logged', async () => {
     const { alice, bob, bobCard } = await pair()
     await postSnippet(jsonReq('/api/snippets', 'POST', { body: 'shipped a retrieval benchmark' }, bob.token))
     sentEmails = [] // drop the welcome emails from setup
@@ -765,7 +765,7 @@ describe('propose endpoint (T5)', () => {
     const res = await proposeReq(alice.token, { card_id: bobCard, ask_id: alice.askId, ...whys })
     expect(res.status).toBe(201)
     const json = (await res.json()) as Record<string, unknown>
-    expect(json).toMatchObject({ status: 'held', open_outbound: 1 })
+    expect(json).toMatchObject({ status: 'proposed', open_outbound: 1 })
     expect(Object.keys(json).sort()).toEqual(['intro_id', 'note', 'open_outbound', 'status'])
 
     const row = (await pg.query<{
@@ -778,7 +778,7 @@ describe('propose endpoint (T5)', () => {
       card_b: string
       token_b: string
     }>('select * from intros')).rows[0]!
-    expect(row).toMatchObject({ status: 'held', proposed_by: alice.userId, ask_id: alice.askId, user_a: alice.userId, user_b: bob.userId })
+    expect(row).toMatchObject({ status: 'proposed', proposed_by: alice.userId, ask_id: alice.askId, user_a: alice.userId, user_b: bob.userId })
     // target-side card: proposer profile + ask + why_for_them; never why_for_me
     expect(row.card_b).toContain('three weeks into an agent-memory tool')
     expect(row.card_b).toContain('eval help')
@@ -788,16 +788,24 @@ describe('propose endpoint (T5)', () => {
     expect(row.card_a).toContain('builds eval harnesses')
     expect(row.card_a).toContain('shipped a retrieval benchmark')
 
-    // held = mechanically invisible to the target
-    expect(await findIntroByToken(row.token_b)).toBeNull()
+    // live immediately: token resolves, pending lists it, the knock went out —
+    // to the TARGET only; the proposer gets nothing (their proposing was their yes)
+    expect(await findIntroByToken(row.token_b)).not.toBeNull()
     const pending = (await (await getPendingIntros(jsonReq('/api/intros/pending', 'GET', undefined, bob.token))).json()) as {
-      intros: unknown[]
+      intros: { state: string }[]
     }
-    expect(pending.intros).toHaveLength(0)
-    expect(sentEmails).toHaveLength(0) // nothing is sent at held
+    expect(pending.intros).toHaveLength(1)
+    expect(pending.intros[0]!.state).toBe('card')
+    expect(sentEmails.map((e) => e.to)).toEqual(['bob@example.com'])
+    expect(sentEmails[0]!.text).toContain(row.token_b)
+    expect(sentEmails[0]!.text).toContain('?via=email')
+    expect(sentEmails[0]!.text).not.toContain(whys.why_for_me)
 
-    const ev = await pg.query("select 1 from events where type = 'intro_proposal_held'")
+    const ev = await pg.query<{ metadata: { via?: string } }>(
+      "select metadata from events where type = 'intro_proposed'",
+    )
     expect(ev.rows).toHaveLength(1)
+    expect(ev.rows[0]!.metadata.via).toBe('agent_direct')
   })
 
   it('lints both whys — identity or instruction-shaped text never becomes a proposal', async () => {
@@ -871,7 +879,7 @@ describe('propose endpoint (T5)', () => {
   })
 
   it('target_busy is one opaque answer for reverse collisions and dampening', async () => {
-    // Reverse: bob proposed to alice (held) — alice proposing back must NOT
+    // Reverse: bob proposed to alice (open) — alice proposing back must NOT
     // learn that; she sees the same target_busy as anyone else.
     const { alice, bob } = await pair()
     const bobAsk = await postAsk(jsonReq('/api/asks', 'POST', { need: 'workload' }, bob.token))
@@ -940,14 +948,18 @@ describe('M8 support changes', () => {
   })
 })
 
-describe('review surface + full agent-intro flow (T6/T7)', () => {
+// 2026-07-12 (Matthew's call): the seed-phase review is OFF — proposals deliver
+// directly (T5 above). The held/approve/veto machinery stays in the codebase as
+// an emergency brake (flip the propose insert back to 'held'), so these tests
+// keep pinning its behavior. heldProposal() simulates brake mode by flipping the
+// row to 'held' and discarding the delivery notice the live path already sent.
+describe('review machinery — emergency brake (was T6/T7)', () => {
   async function heldProposal() {
     const alice = await activated('alice', 'three weeks into an agent-memory tool', {
       email: 'alice@example.com',
       ask: 'eval help',
     })
     const bob = await activated('bob', 'builds eval harnesses', { email: 'bob@example.com' })
-    sentEmails = []
     const res = await proposeReq(alice.token, {
       card_id: await cardIdOf(bob.userId),
       ask_id: alice.askId,
@@ -956,6 +968,8 @@ describe('review surface + full agent-intro flow (T6/T7)', () => {
     })
     expect(res.status).toBe(201)
     const { intro_id } = (await res.json()) as { intro_id: string }
+    await pg.query("update intros set status = 'held' where id = $1", [intro_id])
+    sentEmails = [] // brake mode: nothing would have been sent at held
     return { alice, bob, introId: intro_id }
   }
 

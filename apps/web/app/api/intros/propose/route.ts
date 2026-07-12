@@ -4,13 +4,18 @@ import { getDb } from '../../../../lib/db'
 import { generateToken } from '../../../../lib/tokens'
 import { logEvent } from '../../../../lib/events'
 import { lintPII, piiRejection } from '../../../../lib/pii-lint'
+import { sendIntroCardNotices } from '../../../../lib/intros'
 
 // POST /api/intros/propose — an agent proposes an introduction after its
-// human said go (contract: documentation/api-contract-m8.md). Creates a HELD
-// intro: invisible to the target (token lookup excludes held; pending lists
-// only 'proposed') until the seed-phase review approves it. A veto is exactly
-// as silent as a decline — the target never learns, the proposer sees 'held'
-// until quiet expiry.
+// human said go (contract: documentation/api-contract-m8.md + 2026-07-12
+// addendum). Creates a live 'proposed' intro and notifies the target
+// immediately — the seed-phase human review ('held') was removed on Matthew's
+// call (2026-07-12): agents select, both humans still approve (the proposer
+// said go; the target accepts or declines), and the server-side lint, caps,
+// and busy-dampening below remain the guard rails. The review machinery
+// (lib listHeldProposals/approve/veto + `pnpm --filter web intro:review`)
+// stays intact as an EMERGENCY BRAKE: flip this insert back to 'held' and
+// the old flow works unchanged.
 //
 // Silence rules encoded here, not in policy:
 //  * one opaque 'target_busy' covers BOTH inbound dampening and a reverse-
@@ -127,26 +132,30 @@ export async function POST(req: Request): Promise<Response> {
   // Proposing IS the proposer's opt-in: a_response is 'accepted' from birth,
   // so the target's accept completes the double opt-in directly, and the
   // proposer's own pending channel never offers them their own proposal.
+  const tokenB = generateToken()
   const { rows } = await db.query<{ id: string }>(
     `insert into intros (user_a, user_b, proposed_by, ask_id, card_a, card_b, token_a, token_b, token_expires_at, status, a_response, a_responded_at)
-     values ($1, $2, $1, $3, $4, $5, $6, $7, now() + interval '${TOKEN_TTL_DAYS} days', 'held', 'accepted', now())
+     values ($1, $2, $1, $3, $4, $5, $6, $7, now() + interval '${TOKEN_TTL_DAYS} days', 'proposed', 'accepted', now())
      returning id`,
-    [user.id, targetId, ask_id, cardA, cardB, generateToken(), generateToken()],
+    [user.id, targetId, ask_id, cardA, cardB, generateToken(), tokenB],
   )
   const introId = rows[0]!.id
-  // why_for_me is review/calibration data only — event metadata, never a card.
+  // The target hears the knock now (email/Telegram if on file; otherwise
+  // their agent's pending channel) — no review gate between propose and deliver.
+  await sendIntroCardNotices(targetId, cardB, tokenB)
+  // why_for_me is calibration/audit data only — event metadata, never a card.
   await logEvent({
-    type: 'intro_proposal_held',
+    type: 'intro_proposed',
     userId: user.id,
-    metadata: { intro_id: introId, ask_id, why_for_me },
+    metadata: { intro_id: introId, ask_id, via: 'agent_direct', why_for_me },
   })
 
   return Response.json(
     {
       intro_id: introId,
-      status: 'held',
+      status: 'proposed',
       note:
-        "Held for human review before anything reaches them. If it clears review, they get your anonymous card; you'll hear only if you both say yes.",
+        "Delivered — they have your anonymous card and will accept or decline in their own time. You'll hear only if you both say yes.",
       open_outbound: openOutbound + 1,
     },
     { status: 201 },

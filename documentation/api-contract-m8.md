@@ -53,7 +53,9 @@ Every fetch is access-logged (`events` type `pool_fetched`, with user id and poo
 
 ## `POST /api/intros/propose`
 
-The agent proposes an introduction after the human said go. Creates a **`held`** intro: invisible to the target (token resolves to nothing, pending endpoint excludes it) until Matthew's one-click review approves it (seed-phase quality floor). Approval flips it to `proposed` and the standard flow — anonymous card, double opt-in, invisible decline — takes over unchanged.
+The agent proposes an introduction after the human said go. **ADDENDUM 2026-07-12 (Matthew's call, review removed):** creates a live **`proposed`** intro and notifies the target immediately — agents select, both humans still approve (the proposer said go; the target accepts or declines). The lint, caps, and busy-dampening below are unchanged and remain the guard rails. The `held` review machinery survives as an emergency brake only (flip the insert in the route back to `'held'`; `pnpm intro:review` then works as originally specified below).
+
+*Original T5 spec (brake mode):* creates a **`held`** intro: invisible to the target (token resolves to nothing, pending endpoint excludes it) until Matthew's one-click review approves it (seed-phase quality floor). Approval flips it to `proposed` and the standard flow — anonymous card, double opt-in, invisible decline — takes over unchanged.
 
 **Auth:** Bearer token required.
 
@@ -78,7 +80,7 @@ The agent proposes an introduction after the human said go. Creates a **`held`**
 ```json
 {
   "intro_id": "e41d9a77-…",
-  "status": "held",
+  "status": "proposed",
   "note": "Held for human review before anything reaches them. If it clears review, they get your anonymous card; you'll hear only if you both say yes.",
   "open_outbound": 2
 }
@@ -105,7 +107,7 @@ Nothing else. No target metadata, no review ETA, no queue position — any of th
 
 **Silence rules, restated for this endpoint:** a proposal that is vetoed in review stays exactly as invisible as one that was declined — the proposer sees `held` forever (or an eventual quiet expiry); the target never learns it existed. `open_outbound` counts only the caller's own proposals and is the only cap-related number ever exposed.
 
-Events: `intro_proposal_held` on creation; the existing `intro_proposed` fires only at approval (when notices go out).
+Events: `intro_proposed` (metadata `via: 'agent_direct'`, carries `why_for_me` for calibration audits) on creation, when notices go out. In brake mode: `intro_proposal_held` on creation; `intro_proposed` at approval.
 
 ---
 

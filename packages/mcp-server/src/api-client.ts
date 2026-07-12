@@ -69,11 +69,13 @@ export interface PoolResponse {
   generated_at?: string
 }
 
-// POST /api/intros/propose response `201` — per T2. `open_outbound` is the only
-// cap-related number ever exposed (counts the caller's own held/proposed intros).
+// POST /api/intros/propose response `201` — per T2 + the 2026-07-12 addendum
+// (review removed: proposals deliver directly as 'proposed'; 'held' kept for
+// back-compat with a server running the emergency-brake flow). `open_outbound`
+// is the only cap-related number ever exposed (the caller's own open intros).
 export interface ProposeResult {
   intro_id: string
-  status: 'held'
+  status: 'proposed' | 'held'
   note: string
   open_outbound: number
 }

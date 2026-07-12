@@ -99,6 +99,25 @@ export async function createIntro(input: {
   return { id }
 }
 
+// Tell a user their anonymous intro card is waiting — email + Telegram, each
+// skipped when absent, both ?via=-tagged for the card-seen latency split.
+// Shared by concierge intros (createIntro), the review approve path, and the
+// direct agent-propose path (2026-07-12: proposals deliver without review).
+export async function sendIntroCardNotices(userId: string, card: string, token: string): Promise<void> {
+  const { rows } = await getDb().query<{ email: string | null; telegram_chat_id: string | null }>(
+    'select email, telegram_chat_id from users where id = $1',
+    [userId],
+  )
+  const user = rows[0]
+  if (!user) return
+  const url = `${appUrl()}/intro/${token}`
+  if (user.email) await sendEmail({ to: user.email, ...introCard(card, `${url}?via=email`) })
+  // Lock-screen rule: the DM says an introduction waits — the card stays on the page.
+  if (user.telegram_chat_id) {
+    await notifyTelegram({ chatId: user.telegram_chat_id, text: tgIntroWaiting(`${url}?via=telegram`) })
+  }
+}
+
 // M8: 'held' (awaiting review) and 'vetoed' (review said no) intros are
 // excluded HERE, in the lookup — their tokens resolve to nothing, so to the
 // target they are mechanically indistinguishable from never having existed.
@@ -361,7 +380,8 @@ export async function listHeldProposals(): Promise<HeldProposal[]> {
   const { rows } = await getDb().query<HeldProposal>(
     `select i.id, i.created_at, i.card_b,
        (select e.metadata->>'why_for_me' from events e
-         where e.type = 'intro_proposal_held' and e.metadata->>'intro_id' = i.id::text
+         where e.type in ('intro_proposal_held', 'intro_proposed')
+           and e.metadata->>'intro_id' = i.id::text
          limit 1) as why_for_me
      from intros i
      where i.status = 'held' and i.token_expires_at > now()
@@ -384,20 +404,7 @@ export async function approveProposal(id: string): Promise<boolean> {
   const intro = rows[0]
   if (!intro) return false
   if (intro.user_b) {
-    const target = await db.query<{ email: string | null; telegram_chat_id: string | null }>(
-      'select email, telegram_chat_id from users where id = $1',
-      [intro.user_b],
-    )
-    const url = `${appUrl()}/intro/${intro.token_b}`
-    const email = target.rows[0]?.email
-    if (email) {
-      await sendEmail({ to: email, ...introCard(intro.card_b, `${url}?via=email`) })
-    }
-    const chatId = target.rows[0]?.telegram_chat_id
-    if (chatId) {
-      // Lock-screen rule: the DM says an introduction waits — the card stays on the page.
-      await notifyTelegram({ chatId, text: tgIntroWaiting(`${url}?via=telegram`) })
-    }
+    await sendIntroCardNotices(intro.user_b, intro.card_b, intro.token_b)
   }
   await logEvent({ type: 'intro_proposed', metadata: { intro_id: id, via: 'agent_approved' } })
   return true

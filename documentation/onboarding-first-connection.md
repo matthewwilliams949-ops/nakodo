@@ -34,3 +34,16 @@ Onboarding length (new beats ride existing approval moments), the five guarantee
 ## Boundaries
 
 Consult ping sent to Acquisition (first-session experience sits near the install promise). No PII or guarantee surface touched → no Safety co-review required; flagged in the CTO handoff for their check.
+
+## Addendum 2026-07-12 (later the same day) — the first-match flow, Matthew's spec
+
+Matthew's refinements after reviewing the arc, built on `m9e/first-match-flow`:
+
+1. **No founder self-disclosure.** The first match presents as a normal anonymous card. Matthew's live card already says the sanctioned facts in its own words — solo founder, building an MCP that introduces builders, shipping the whole stack alone, wants thoughts and honest feedback — so the agent's "why them" draws on card content, exactly like any other match. No server flag, no guarantee-#2 exception, nothing for anyone to spoof.
+2. **The manual approve step is removed — for all proposals, not just first ones.** Agents select; both humans still approve (proposer says go, target accepts/declines). Server lint, the 2-outbound cap, inbound dampening, and invisible declines are unchanged. The `held`/review machinery stays as an emergency brake (route header documents the flip). Consequence for the wow: "sent — you'll hear the moment they respond" is now literally true; the target's knock goes out at propose time.
+3. **Recommendation-first matching:** the calibration guide now leads with ONE confident recommendation and the agent's own case for it ("I found someone — here's why them"), falling back to calibration when the user hesitates. "Here are some options" is explicitly named as the anti-pattern.
+4. **The channel moment rides the send:** propose_intro's return copy asks the how-will-you-hear question at the moment a concrete pending thing exists. Step 9's "day or two" timing promise is GONE (resolves the CTO's honesty flag — no cadence-dependent promise remains).
+5. **Profile spec gains project phase** (just starting / mid-build / launching / growing).
+6. **Ops flip:** Matthew's seed-window heartbeat is answering inbound intros fast — new users' first sends target his card, and his response latency is their first impression of whether this network is alive.
+
+Third notification channel (browser/web push, M9d tier 1) is wanted for this flow but unbuilt and now LTV's surface — demand signal filed with them; onboarding offers the live channels only.
