@@ -25,7 +25,13 @@ function ipHash(req: Request): string | null {
     req.headers.get('x-real-ip')?.trim() ||
     null
   if (!ip) return null // no proxy header (tests, local dev) — Vercel always sets one
-  return createHash('sha256').update(`nakodo-register:${ip}`).digest('hex').slice(0, 16)
+  // Safety co-review 2026-07-12: the salt must be SECRET for "useless for
+  // lookup" to be literally true — with a static salt in a public repo, a
+  // 64-bit truncated hash is brute-forceable over the IPv4 space by anyone
+  // with a DB read. REGISTER_IP_SALT in env; the static prefix remains only
+  // as a dev fallback (/api/health reports whether the real salt is set).
+  const salt = process.env.REGISTER_IP_SALT || 'nakodo-register'
+  return createHash('sha256').update(`${salt}:${ip}`).digest('hex').slice(0, 16)
 }
 
 const Body = z.object({

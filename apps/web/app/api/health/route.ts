@@ -30,6 +30,7 @@ export async function GET(req: Request): Promise<Response> {
     db,
     resend_configured: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
     app_url: Boolean(process.env.APP_URL),
+    register_ip_salt: Boolean(process.env.REGISTER_IP_SALT),
   }
   const ok = Object.values(checks).every(Boolean)
   return Response.json({ ok, checks }, { status: ok ? 200 : 503 })
