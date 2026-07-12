@@ -125,7 +125,9 @@ create table if not exists events (
 create index if not exists events_type_idx on events (type, created_at);
 create index if not exists snippets_user_idx on snippets (user_id, created_at);
 create index if not exists asks_user_idx on asks (user_id, status);
-create index if not exists intro_messages_intro_seq_idx on intro_messages (intro_id, seq);
+-- NB: intro_messages_intro_seq_idx is created AFTER the `seq` ALTER below (line
+-- ~150), not here — `seq` is migration-added, so on an existing DB it doesn't
+-- exist yet at this point (would fail "column seq does not exist" on prod).
 
 -- v1.1 trust redesign (2026-07-09) — idempotent migrations for existing databases.
 -- Email becomes optional (notification-only). (The v1.1 a_contact/b_contact
