@@ -7,7 +7,8 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { PGlite } from '@electric-sql/pglite'
 import { setDb } from '../lib/db'
 import { setEmailSender, type Email } from '../lib/email'
-import { createIntro, findIntroByToken, getIntroMessages, getRevealParties, threadTurn } from '../lib/intros'
+import { setTelegramSender, type TelegramMessage } from '../lib/telegram'
+import { approveProposal, createIntro, findIntroByToken, getIntroMessages, getRevealParties, threadTurn } from '../lib/intros'
 import { POST as register } from '../app/api/register/route'
 import { POST as postProfile } from '../app/api/profile/route'
 import { POST as postSnippet } from '../app/api/snippets/route'
@@ -19,9 +20,12 @@ import { POST as respondIntro } from '../app/api/intro/[token]/route'
 import { GET as getPendingIntros } from '../app/api/intros/pending/route'
 import { GET as getPool } from '../app/api/pool/route'
 import { POST as propose } from '../app/api/intros/propose/route'
+import { POST as telegramConnect, DELETE as telegramDisconnect } from '../app/api/me/telegram/route'
+import { POST as telegramWebhook } from '../app/api/telegram/webhook/route'
 
 let pg: PGlite
 let sentEmails: Email[] = []
+let sentTelegrams: TelegramMessage[] = []
 
 beforeAll(async () => {
   pg = new PGlite()
@@ -36,10 +40,14 @@ beforeAll(async () => {
   setEmailSender(async (e) => {
     sentEmails.push(e)
   })
+  setTelegramSender(async (m) => {
+    sentTelegrams.push(m)
+  })
 })
 
 beforeEach(async () => {
   sentEmails = []
+  sentTelegrams = []
   await pg.exec('delete from events; delete from intro_messages; delete from intros; delete from asks; delete from snippets; delete from profiles; delete from users;')
 })
 
@@ -1303,5 +1311,222 @@ describe('M9b — prior-connection pool marking + reconnect attribution', () => 
     expect(sentEmails).toHaveLength(1)
     expect(sentEmails[0]!.to).toBe('bob.secret@example.com')
     expect(sentEmails[0]!.subject).toContain('message is waiting')
+  })
+})
+
+describe('M9d tier 2 — Telegram notify', () => {
+  const WEBHOOK_SECRET = 'test-webhook-secret'
+
+  beforeAll(() => {
+    process.env.TELEGRAM_BOT_USERNAME = 'NakodoTestBot'
+    process.env.TELEGRAM_WEBHOOK_SECRET = WEBHOOK_SECRET
+  })
+
+  function tgUpdate(chat: string, text: string, secret: string | null = WEBHOOK_SECRET): Request {
+    return new Request('http://test/api/telegram/webhook', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(secret ? { 'x-telegram-bot-api-secret-token': secret } : {}),
+      },
+      body: JSON.stringify({ message: { chat: { id: chat }, text } }),
+    })
+  }
+
+  async function mintLink(bearer: string): Promise<string> {
+    const res = await telegramConnect(jsonReq('/api/me/telegram', 'POST', undefined, bearer))
+    expect(res.status).toBe(200)
+    const { url } = (await res.json()) as { url: string }
+    expect(url).toMatch(/^https:\/\/t\.me\/NakodoTestBot\?start=/)
+    return url.split('start=')[1]!
+  }
+
+  async function bindTelegram(bearer: string, chat: string): Promise<void> {
+    const start = await mintLink(bearer)
+    const hook = await telegramWebhook(tgUpdate(chat, `/start ${start}`))
+    expect(hook.status).toBe(200)
+  }
+
+  it('connect: Start-tap binds the chat, the link token is single-use, both events log', async () => {
+    const bearer = await registerUser('tg@example.com')
+    await bindTelegram(bearer, '111')
+
+    const user = (
+      await pg.query<{ telegram_chat_id: string | null; telegram_link_token: string | null }>(
+        'select telegram_chat_id, telegram_link_token from users',
+      )
+    ).rows[0]!
+    expect(user.telegram_chat_id).toBe('111')
+    expect(user.telegram_link_token).toBeNull() // consumed on bind
+
+    expect(sentTelegrams).toHaveLength(1) // the confirmation DM
+    expect(sentTelegrams[0]!.chatId).toBe('111')
+    expect(sentTelegrams[0]!.text).toContain('/stop')
+
+    const events = (await pg.query<{ type: string }>('select type from events')).rows.map((e) => e.type)
+    expect(events).toContain('telegram_link_created')
+    expect(events).toContain('telegram_connected')
+  })
+
+  it('webhook rejects a missing or wrong secret with 401', async () => {
+    expect((await telegramWebhook(tgUpdate('111', '/start x', null))).status).toBe(401)
+    expect((await telegramWebhook(tgUpdate('111', '/start x', 'wrong'))).status).toBe(401)
+  })
+
+  it('an expired or unknown start token never binds; the reply reveals nothing', async () => {
+    const bearer = await registerUser('tg@example.com')
+    const start = await mintLink(bearer)
+    await pg.query("update users set telegram_link_expires_at = now() - interval '1 minute'")
+
+    for (const attempt of [start, 'not-a-token']) {
+      sentTelegrams = []
+      const res = await telegramWebhook(tgUpdate('222', `/start ${attempt}`))
+      expect(res.status).toBe(200) // Telegram re-delivers non-2xx forever
+      expect(sentTelegrams[0]!.text).toContain('ask your agent')
+    }
+    const user = (await pg.query<{ telegram_chat_id: string | null }>('select telegram_chat_id from users')).rows[0]!
+    expect(user.telegram_chat_id).toBeNull()
+  })
+
+  it('rebinding a chat to a second account unbinds the first (one account per chat)', async () => {
+    const bearerA = await registerUser('a@example.com', { handle: 'alice' })
+    const bearerB = await registerUser('b@example.com', { handle: 'bob' })
+    await bindTelegram(bearerA, '333')
+    await bindTelegram(bearerB, '333')
+
+    const rows = (
+      await pg.query<{ handle: string; telegram_chat_id: string | null }>('select handle, telegram_chat_id from users order by handle')
+    ).rows
+    expect(rows.find((r) => r.handle === 'alice')!.telegram_chat_id).toBeNull()
+    expect(rows.find((r) => r.handle === 'bob')!.telegram_chat_id).toBe('333')
+  })
+
+  it('/stop unbinds; the reply is identical whether or not anything was bound', async () => {
+    const bearer = await registerUser('tg@example.com')
+    await bindTelegram(bearer, '444')
+
+    sentTelegrams = []
+    await telegramWebhook(tgUpdate('444', '/stop'))
+    const boundReply = sentTelegrams[0]!.text
+    expect((await pg.query<{ telegram_chat_id: string | null }>('select telegram_chat_id from users')).rows[0]!.telegram_chat_id).toBeNull()
+
+    sentTelegrams = []
+    await telegramWebhook(tgUpdate('444', '/stop')) // nothing bound anymore
+    expect(sentTelegrams[0]!.text).toBe(boundReply)
+  })
+
+  it('DELETE /api/me/telegram disconnects from the agent side', async () => {
+    const bearer = await registerUser('tg@example.com')
+    await bindTelegram(bearer, '555')
+    const res = await telegramDisconnect(jsonReq('/api/me/telegram', 'DELETE', undefined, bearer))
+    expect(res.status).toBe(200)
+    expect((await pg.query<{ telegram_chat_id: string | null }>('select telegram_chat_id from users')).rows[0]!.telegram_chat_id).toBeNull()
+  })
+
+  async function connectedPair(): Promise<{ tokenA: string; tokenB: string; id: string }> {
+    const bearerA = await registerUser('a@example.com', { handle: 'alice', display_name: 'Alice Kim' })
+    const bearerB = await registerUser('b@example.com', { handle: 'bob', display_name: 'Bob Osei' })
+    await bindTelegram(bearerA, '1001')
+    await bindTelegram(bearerB, '1002')
+    sentEmails = []
+    sentTelegrams = []
+    const { id } = await createIntro({
+      userA: 'alice',
+      userB: 'bob',
+      cardA: 'someone in Berlin, strong at design',
+      cardB: 'someone three weeks into an agent-memory tool',
+    })
+    const row = (await pg.query<{ token_a: string; token_b: string }>('select token_a, token_b from intros')).rows[0]!
+    return { tokenA: row.token_a, tokenB: row.token_b, id }
+  }
+
+  function respond(token: string, response: 'accepted' | 'declined') {
+    return respondIntro(jsonReq(`/api/intro/${token}`, 'POST', { response }), {
+      params: Promise.resolve({ token }),
+    })
+  }
+
+  it('LOCK-SCREEN PIN: the intro-waiting DM carries no card content and no names — email keeps the card, both channels fire', async () => {
+    const { tokenA } = await connectedPair()
+    expect(sentEmails).toHaveLength(2) // channels are independent
+    expect(sentTelegrams).toHaveLength(2)
+    const dmA = sentTelegrams.find((m) => m.chatId === '1001')!
+    expect(dmA.text).toContain('introduction is waiting')
+    expect(dmA.text).toContain(`/intro/${tokenA}`) // the page is where the card lives
+    for (const dm of sentTelegrams) {
+      expect(dm.text).not.toContain('Berlin') // no card content
+      expect(dm.text).not.toContain('agent-memory')
+      expect(dm.text).not.toContain('Alice') // no names pre-reveal
+      expect(dm.text).not.toContain('Bob')
+    }
+  })
+
+  it('mutual yes: the DM may carry the counterpart reveal name; message-waiting stays identity-free', async () => {
+    const { tokenA, tokenB } = await connectedPair()
+    sentTelegrams = []
+    await respond(tokenA, 'accepted')
+    expect(sentTelegrams).toHaveLength(0) // first accept reveals nothing
+    await respond(tokenB, 'accepted')
+    expect(sentTelegrams).toHaveLength(2)
+    expect(sentTelegrams.find((m) => m.chatId === '1001')!.text).toContain('Bob Osei')
+    expect(sentTelegrams.find((m) => m.chatId === '1002')!.text).toContain('Alice Kim')
+
+    // the first hello is covered by the reveal notice (anti-nag rule) — silent.
+    sentTelegrams = []
+    await respondIntro(jsonReq(`/api/intro/${tokenA}`, 'POST', { message: 'hello from alice — a@x.dev' }), {
+      params: Promise.resolve({ token: tokenA }),
+    })
+    expect(sentTelegrams).toHaveLength(0)
+    // bob's reply crosses the ball back into alice's court → she gets the DM,
+    // which never carries the body or a name.
+    await respondIntro(jsonReq(`/api/intro/${tokenB}`, 'POST', { message: 'hey! find me at bob@x.dev' }), {
+      params: Promise.resolve({ token: tokenB }),
+    })
+    expect(sentTelegrams).toHaveLength(1)
+    expect(sentTelegrams[0]!.chatId).toBe('1001')
+    expect(sentTelegrams[0]!.text).toContain('message is waiting')
+    expect(sentTelegrams[0]!.text).not.toContain('bob@x.dev')
+    expect(sentTelegrams[0]!.text).not.toContain('Bob')
+  })
+
+  it('approveProposal DMs the target the same lock-screen-safe knock', async () => {
+    const { id } = await connectedPair()
+    await pg.query("update intros set status = 'held' where id = $1", [id])
+    sentTelegrams = []
+    expect(await approveProposal(id)).toBe(true)
+    expect(sentTelegrams).toHaveLength(1)
+    expect(sentTelegrams[0]!.chatId).toBe('1002') // user_b, the target
+    expect(sentTelegrams[0]!.text).toContain('introduction is waiting')
+    expect(sentTelegrams[0]!.text).not.toContain('agent-memory')
+  })
+
+  it('a Telegram send failure never breaks the flow it rides on (best-effort channel)', async () => {
+    const bearerA = await registerUser('a@example.com', { handle: 'alice' })
+    await registerUser('b@example.com', { handle: 'bob' })
+    await bindTelegram(bearerA, '666')
+    setTelegramSender(async () => {
+      throw new Error('telegram down')
+    })
+    try {
+      const { id } = await createIntro({ userA: 'alice', userB: 'bob', cardA: 'x', cardB: 'y' })
+      expect(id).toBeTruthy() // intro created despite the dead channel
+      expect((await pg.query('select * from intros')).rows).toHaveLength(1)
+    } finally {
+      setTelegramSender(async (m) => {
+        sentTelegrams.push(m)
+      })
+    }
+  })
+
+  it('returns 503 telegram_not_configured when the bot env is absent', async () => {
+    const bearer = await registerUser('tg@example.com')
+    const saved = process.env.TELEGRAM_BOT_USERNAME
+    delete process.env.TELEGRAM_BOT_USERNAME
+    try {
+      const res = await telegramConnect(jsonReq('/api/me/telegram', 'POST', undefined, bearer))
+      expect(res.status).toBe(503)
+    } finally {
+      process.env.TELEGRAM_BOT_USERNAME = saved
+    }
   })
 })

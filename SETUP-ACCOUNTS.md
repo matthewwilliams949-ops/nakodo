@@ -94,3 +94,19 @@ Then tell me **"accounts done"** (plus anything that deviated, e.g. a scoped npm
 | npm publish auth | `npm login` done once (step 2.2) |
 
 Agents never need the logins — only the repo, `.env`, and the linked CLIs.
+
+## 8. Telegram bot (M9d tier 2 — ~10 min, Matthew-only)
+
+The notification bot for "an introduction is waiting" on phone lock screens. All of this is account/credential work, so it's yours:
+
+1. In Telegram, open **@BotFather** → `/newbot`. Name: `Nakodo` (display), username: something like `NakodoBot` / `nakodo_notify_bot` (must end in `bot`; take the best available). BotFather returns the **bot token**.
+2. Optional polish while you're there: `/setdescription` → "Delivers Nakodo introduction notifications. Nothing else."; `/setuserpic` if we have a mark.
+3. **→ .env** as `TELEGRAM_BOT_TOKEN` (from step 1), `TELEGRAM_BOT_USERNAME` (the username without @), and `TELEGRAM_WEBHOOK_SECRET` (any long random string, e.g. `openssl rand -hex 32`).
+4. Add the same three to **Vercel env** (Settings → Environment Variables) and redeploy.
+5. Register the webhook: `pnpm telegram:setup` (idempotent; verifies the token matches the username, points Telegram at `APP_URL/api/telegram/webhook` with the secret).
+6. Smoke it: ask your agent to connect Telegram (`connect_telegram`), tap the link, press Start — you should get the "Connected" DM. Send `/stop` and reconnect to confirm both directions.
+
+| What | Where it lives |
+|---|---|
+| BotFather chat (bot ownership) | your Telegram account |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` | `.env` locally + Vercel env |

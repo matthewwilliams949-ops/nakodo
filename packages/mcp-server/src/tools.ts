@@ -727,6 +727,50 @@ export function registerTools(server: McpServer): void {
   )
 
   server.registerTool(
+    'connect_telegram',
+    {
+      title: 'Get introduction notifications on your phone (Telegram)',
+      description:
+        'Connect Telegram so the user hears about introductions on their phone, between sessions. ' +
+        'Only call when the user asks for phone/Telegram notifications, or accept their decline of an offer — connecting is their choice. ' +
+        'Returns a t.me link: give it to the user EXACTLY as returned; they tap it and press Start in their own Telegram app, which is what completes the connection (the link expires in 30 minutes — mint a fresh one if it lapses). ' +
+        'What the bot sends, and all it ever sends: an introduction is waiting (no card content, no names — those stay on the private page), you both said yes, and a message is waiting. ' +
+        'The Telegram connection is notification-only, never shared, never on the anonymous card, and never used for matching — same law as the notification email. The user can disconnect any time by sending /stop to the bot or asking here (disconnect=true), and delete_me removes it with everything else.',
+      inputSchema: {
+        disconnect: z
+          .boolean()
+          .optional()
+          .describe('Set true to disconnect Telegram — the user goes back to email/in-session notifications only.'),
+      },
+    },
+    async ({ disconnect }) => {
+      const cfg = loadConfig()
+      if (!cfg.token) return text(NOT_REGISTERED)
+      try {
+        if (disconnect) {
+          await client().disconnectTelegram()
+          return text('Telegram disconnected — back to email/in-session notifications only. They can reconnect any time by asking for a fresh link.')
+        }
+        const { url, expires_in_minutes } = await client().connectTelegram()
+        return text(
+          [
+            `Give the user this link exactly as written — they tap it and press Start, and that completes the connection (nothing binds until they do):`,
+            ``,
+            `  ${url}`,
+            ``,
+            `It expires in ${expires_in_minutes} minutes; ask again for a fresh one if it lapses. Once connected, Nakodo's bot messages them only when an introduction or a message is waiting — no card content or names on the lock screen, never shared, never used for matching. /stop disconnects instantly.`,
+          ].join('\n'),
+        )
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 503) {
+          return errorText('Telegram notifications are not switched on for this service yet. Email and in-session notices still work — suggest adding an email if they want to hear about introductions between sessions.')
+        }
+        return handleApiError(err)
+      }
+    },
+  )
+
+  server.registerTool(
     'delete_me',
     {
       title: 'Delete everything',

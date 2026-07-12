@@ -53,6 +53,7 @@ describe('nakodo over stdio', () => {
     const { tools } = await client.listTools()
     expect(tools.map((t) => t.name).sort()).toEqual([
       'capture_snippet',
+      'connect_telegram',
       'create_profile',
       'delete_me',
       'find_collaborator',
@@ -62,6 +63,12 @@ describe('nakodo over stdio', () => {
       'share_feedback',
       'update_my_details',
     ])
+    // M9d: notification-only law + the user's own tap as the approval gate —
+    // pinned like every other guarantee phrasing.
+    const telegram = tools.find((t) => t.name === 'connect_telegram')!
+    expect(telegram.description).toContain('notification-only, never shared')
+    expect(telegram.description).toContain('press Start in their own Telegram app')
+    expect(telegram.description).toContain('no card content, no names')
     // M9-0: the honest framing is verbatim, load-bearing product surface
     const feedback = tools.find((t) => t.name === 'share_feedback')!
     expect(feedback.description).toContain(

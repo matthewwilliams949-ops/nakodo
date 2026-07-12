@@ -15,6 +15,12 @@ create table if not exists users (
   -- shown on the revealed intro page, never in any card or pool response.
   display_name text,
   location text,
+  -- M9d: Telegram notification channel. Same law as email — PII store only,
+  -- notification-only, never shared. link_token/expires drive the one-time
+  -- t.me ?start= bind and are cleared once the chat_id is bound.
+  telegram_chat_id text unique,
+  telegram_link_token text unique,
+  telegram_link_expires_at timestamptz,
   token_hash text not null unique,
   source text, -- attribution: how the agent found the server (Motion 3 instrument)
   created_at timestamptz not null default now()
@@ -150,6 +156,15 @@ alter table intros add constraint intros_status_check
 alter table intro_messages add column if not exists seq bigint generated always as identity;
 drop index if exists intro_messages_intro_idx;
 create index if not exists intro_messages_intro_seq_idx on intro_messages (intro_id, seq);
+
+-- M9d tier 2 — Telegram notify (2026-07-12), idempotent. All three columns are
+-- PII-store only, same law as email: notification channel, never shared, never
+-- in a card or pool response. chat_id deletes with the user row (guarantee 5).
+-- link_token is the one-time ?start= payload (agent hands the t.me deep link;
+-- the webhook binds and clears it); short-lived via link_expires_at.
+alter table users add column if not exists telegram_chat_id text unique;
+alter table users add column if not exists telegram_link_token text unique;
+alter table users add column if not exists telegram_link_expires_at timestamptz;
 
 -- Fold v1.1 contact shares into the thread as its first messages, then drop
 -- the columns. Contacts left by a since-deleted user are skipped: their
