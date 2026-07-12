@@ -3,11 +3,12 @@
 // call them directly — no Next server needed.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { PGlite } from '@electric-sql/pglite'
 import { setDb } from '../lib/db'
 import { setEmailSender, type Email } from '../lib/email'
 import { setTelegramSender, type TelegramMessage } from '../lib/telegram'
+import { setPushSender, type PushMessage } from '../lib/push'
 import { approveProposal, createIntro, findIntroByToken, getIntroMessages, getRevealParties, threadTurn } from '../lib/intros'
 import { POST as register } from '../app/api/register/route'
 import { POST as postProfile } from '../app/api/profile/route'
@@ -22,10 +23,15 @@ import { GET as getPool } from '../app/api/pool/route'
 import { POST as propose } from '../app/api/intros/propose/route'
 import { POST as telegramConnect, DELETE as telegramDisconnect } from '../app/api/me/telegram/route'
 import { POST as telegramWebhook } from '../app/api/telegram/webhook/route'
+import { POST as pushSubscribe, DELETE as pushUnsubscribe } from '../app/api/intro/[token]/push/route'
 
 let pg: PGlite
 let sentEmails: Email[] = []
 let sentTelegrams: TelegramMessage[] = []
+let sentPushes: PushMessage[] = []
+// A push sender that fails as the push service does when a subscription is
+// gone (RFC 8030 410) — exercises notifyPush's self-heal path.
+let pushGone = false
 
 beforeAll(async () => {
   pg = new PGlite()
@@ -43,11 +49,17 @@ beforeAll(async () => {
   setTelegramSender(async (m) => {
     sentTelegrams.push(m)
   })
+  setPushSender(async (m) => {
+    if (pushGone) throw Object.assign(new Error('gone'), { statusCode: 410 })
+    sentPushes.push(m)
+  })
 })
 
 beforeEach(async () => {
   sentEmails = []
   sentTelegrams = []
+  sentPushes = []
+  pushGone = false
   await pg.exec('delete from events; delete from intro_messages; delete from intros; delete from asks; delete from snippets; delete from profiles; delete from users;')
 })
 
@@ -1566,5 +1578,144 @@ describe('M9d tier 2 — Telegram notify', () => {
     } finally {
       process.env.TELEGRAM_BOT_USERNAME = saved
     }
+  })
+})
+
+describe('M9d tier 1 — browser push notify', () => {
+  const SUB = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc', keys: { p256dh: 'p256dh-key', auth: 'auth-key' } }
+  const VAPID = { VAPID_PUBLIC_KEY: 'test-public', VAPID_PRIVATE_KEY: 'test-private' }
+
+  // Push is env-gated: the subscribe route 503s without VAPID keys. Set them
+  // for this suite; restore after so the "channel off" pin can clear them.
+  let saved: Record<string, string | undefined>
+  beforeEach(() => {
+    saved = { VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY }
+    Object.assign(process.env, VAPID)
+  })
+  afterEach(() => {
+    for (const [k, v] of Object.entries(saved)) v === undefined ? delete process.env[k] : (process.env[k] = v)
+  })
+
+  function subReq(token: string, body: unknown) {
+    return pushSubscribe(jsonReq(`/api/intro/${token}/push`, 'POST', body), { params: Promise.resolve({ token }) })
+  }
+  function unsubReq(token: string) {
+    return pushUnsubscribe(jsonReq(`/api/intro/${token}/push`, 'DELETE'), { params: Promise.resolve({ token }) })
+  }
+
+  async function pairWithTokens(): Promise<{ tokenA: string; tokenB: string; id: string }> {
+    await registerUser('a@example.com', { handle: 'alice', display_name: 'Alice Kim' })
+    await registerUser('b@example.com', { handle: 'bob', display_name: 'Bob Osei' })
+    const { id } = await createIntro({
+      userA: 'alice',
+      userB: 'bob',
+      cardA: 'someone in Berlin, strong at design',
+      cardB: 'someone three weeks into an agent-memory tool',
+    })
+    const row = (await pg.query<{ token_a: string; token_b: string }>('select token_a, token_b from intros')).rows[0]!
+    return { tokenA: row.token_a, tokenB: row.token_b, id }
+  }
+
+  function respond(token: string, response: 'accepted' | 'declined') {
+    return respondIntro(jsonReq(`/api/intro/${token}`, 'POST', { response }), { params: Promise.resolve({ token }) })
+  }
+
+  it('subscribe stores the browser subscription against the token owner; push_enabled logs, no endpoint in metadata', async () => {
+    const { tokenA } = await pairWithTokens()
+    const res = await subReq(tokenA, SUB)
+    expect(res.status).toBe(200)
+    const stored = (await pg.query<{ push_subscription: typeof SUB | null }>(
+      "select push_subscription from users where handle = 'alice'",
+    )).rows[0]!.push_subscription
+    expect(stored!.endpoint).toBe(SUB.endpoint)
+
+    const ev = (await pg.query<{ type: string; metadata: unknown }>('select type, metadata from events')).rows.find(
+      (e) => e.type === 'push_enabled',
+    )!
+    expect(ev).toBeTruthy()
+    expect(JSON.stringify(ev.metadata)).not.toContain('fcm.googleapis.com') // capability never in events
+  })
+
+  it('subscribe rejects a non-https endpoint and an oversized field with 400', async () => {
+    const { tokenA } = await pairWithTokens()
+    expect((await subReq(tokenA, { endpoint: 'http://insecure/x', keys: SUB.keys })).status).toBe(400)
+    expect((await subReq(tokenA, { endpoint: SUB.endpoint, keys: { p256dh: 'x'.repeat(300), auth: 'a' } })).status).toBe(400)
+  })
+
+  it('subscribe on a dead/held token is a 404 — indistinguishable from any bad token', async () => {
+    expect((await subReq('not-a-real-token', SUB)).status).toBe(404)
+  })
+
+  it('returns 503 push_not_configured when VAPID keys are absent (channel off)', async () => {
+    const { tokenA } = await pairWithTokens()
+    delete process.env.VAPID_PUBLIC_KEY
+    delete process.env.VAPID_PRIVATE_KEY
+    expect((await subReq(tokenA, SUB)).status).toBe(503)
+  })
+
+  it('LOCK-SCREEN PIN: intro-waiting push carries no card content and no names', async () => {
+    const { tokenA, tokenB } = await pairWithTokens()
+    await subReq(tokenA, SUB)
+    await subReq(tokenB, { ...SUB, endpoint: 'https://fcm.googleapis.com/fcm/send/bob' })
+    sentPushes = []
+    // re-propose by re-running createIntro path is heavy; instead drive a fresh intro
+    await registerUser('c@example.com', { handle: 'cara' })
+    // alice already has a sub — a new intro to her fires the intro-waiting push
+    const { id } = await createIntro({ userA: 'alice', userB: 'cara', cardA: 'a secret Berlin card', cardB: 'y' })
+    expect(id).toBeTruthy()
+    const toAlice = sentPushes.find((p) => p.subscription.endpoint === SUB.endpoint)!
+    expect(toAlice).toBeTruthy()
+    expect(toAlice.payload.title).toContain('introduction is waiting')
+    expect(`${toAlice.payload.title} ${toAlice.payload.body}`).not.toContain('Berlin') // no card content
+    expect(`${toAlice.payload.title} ${toAlice.payload.body}`).not.toContain('cara')
+    expect(toAlice.payload.url).toContain('?via=push')
+  })
+
+  it('mutual yes: reveal push may carry the counterpart name; message-waiting push stays identity-free', async () => {
+    const { tokenA, tokenB } = await pairWithTokens()
+    await subReq(tokenA, SUB)
+    await subReq(tokenB, { ...SUB, endpoint: 'https://fcm.googleapis.com/fcm/send/bob' })
+    sentPushes = []
+    await respond(tokenA, 'accepted')
+    expect(sentPushes).toHaveLength(0) // first accept reveals nothing
+    await respond(tokenB, 'accepted')
+    expect(sentPushes.find((p) => p.subscription.endpoint === SUB.endpoint)!.payload.body).toContain('Bob Osei')
+
+    sentPushes = []
+    await respondIntro(jsonReq(`/api/intro/${tokenA}`, 'POST', { message: 'hi bob — a@x.dev' }), {
+      params: Promise.resolve({ token: tokenA }),
+    })
+    expect(sentPushes).toHaveLength(0) // first hello covered by reveal (anti-nag)
+    await respondIntro(jsonReq(`/api/intro/${tokenB}`, 'POST', { message: 'reach me at bob@x.dev' }), {
+      params: Promise.resolve({ token: tokenB }),
+    })
+    const toAlice = sentPushes.find((p) => p.subscription.endpoint === SUB.endpoint)!
+    expect(toAlice.payload.title).toContain('message is waiting')
+    expect(`${toAlice.payload.title} ${toAlice.payload.body}`).not.toContain('bob@x.dev')
+    expect(`${toAlice.payload.title} ${toAlice.payload.body}`).not.toContain('Bob')
+  })
+
+  it('a gone subscription (410) self-heals: the column clears and the flow is unaffected', async () => {
+    const { tokenA } = await pairWithTokens()
+    await subReq(tokenA, SUB)
+    pushGone = true
+    await registerUser('c@example.com', { handle: 'cara' })
+    const { id } = await createIntro({ userA: 'alice', userB: 'cara', cardA: 'x', cardB: 'y' })
+    expect(id).toBeTruthy() // intro created despite the dead subscription
+    const stored = (await pg.query<{ push_subscription: unknown }>(
+      "select push_subscription from users where handle = 'alice'",
+    )).rows[0]!.push_subscription
+    expect(stored).toBeNull() // cleared by the self-heal
+  })
+
+  it('unsubscribe clears the column and logs push_disabled', async () => {
+    const { tokenA } = await pairWithTokens()
+    await subReq(tokenA, SUB)
+    expect((await unsubReq(tokenA)).status).toBe(200)
+    const stored = (await pg.query<{ push_subscription: unknown }>(
+      "select push_subscription from users where handle = 'alice'",
+    )).rows[0]!.push_subscription
+    expect(stored).toBeNull()
+    expect((await pg.query<{ type: string }>('select type from events')).rows.map((e) => e.type)).toContain('push_disabled')
   })
 })

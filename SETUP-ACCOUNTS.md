@@ -110,3 +110,19 @@ The notification bot for "an introduction is waiting" on phone lock screens. All
 |---|---|
 | BotFather chat (bot ownership) | your Telegram account |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` | `.env` locally + Vercel env |
+
+## 9. Browser push keys (M9d tier 1 — ~3 min, Matthew-only)
+
+The desk notification channel — a one-click "notify me on this device" on the intro page, no app install. Just a self-generated keypair, no third-party account:
+
+1. Generate the VAPID keypair: `npx web-push generate-vapid-keys` (prints a public + private key).
+2. **→ .env** as `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT=mailto:hello@nakodo.dev`.
+3. Add the same three to **Vercel env** and redeploy.
+4. Smoke it: open any intro page after saying yes → "Notify me on this device" → allow → accept from the other side and confirm the desktop notification fires.
+
+Until these are set the channel is **off** by design: no button renders, subscribe returns 503, sends skip — nothing else is affected.
+
+| What | Where it lives |
+|---|---|
+| VAPID keypair (self-generated, no account) | `.env` locally + Vercel env |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | `.env` locally + Vercel env |

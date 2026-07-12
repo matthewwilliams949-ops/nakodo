@@ -21,6 +21,10 @@ create table if not exists users (
   telegram_chat_id text unique,
   telegram_link_token text unique,
   telegram_link_expires_at timestamptz,
+  -- M9d tier 1: Web Push subscription (endpoint + browser keys), one per user —
+  -- latest browser wins. PII store only: a capability to notify this browser,
+  -- never shared, never in a card/pool/event. Dies with the row (guarantee 5).
+  push_subscription jsonb,
   token_hash text not null unique,
   source text, -- attribution: how the agent found the server (Motion 3 instrument)
   created_at timestamptz not null default now()
@@ -165,6 +169,10 @@ create index if not exists intro_messages_intro_seq_idx on intro_messages (intro
 alter table users add column if not exists telegram_chat_id text unique;
 alter table users add column if not exists telegram_link_token text unique;
 alter table users add column if not exists telegram_link_expires_at timestamptz;
+
+-- M9d tier 1 — browser push (2026-07-12), idempotent. Same law as the Telegram
+-- columns above: PII-store-only notification capability, dies with the row.
+alter table users add column if not exists push_subscription jsonb;
 
 -- Fold v1.1 contact shares into the thread as its first messages, then drop
 -- the columns. Contacts left by a since-deleted user are skipped: their
