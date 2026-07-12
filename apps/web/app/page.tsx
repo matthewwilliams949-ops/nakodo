@@ -69,9 +69,9 @@ export default function Home() {
       <p>
         Your agent quietly keeps a record of what you&apos;re building — every snippet approved by
         you first. When you need someone (design, code, marketing, a co-founder), ask it: your agent
-        searches a pool of profiles that carry no identity and proposes the introduction, and a
-        human reviews every proposal before it reaches anyone. What arrives is an anonymous card
-        describing a person worth meeting, on a private page. You both say yes, or nothing happens.
+        searches a pool of profiles that carry no identity and proposes the introduction. What
+        arrives is an anonymous card describing a person worth meeting, on a private page. You both
+        say yes, or nothing happens.
         After a yes, the card becomes a person — the name they chose to be called, and a private
         thread where you two take it from there. Nothing is ever sent on your behalf.
       </p>
