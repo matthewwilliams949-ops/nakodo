@@ -158,6 +158,15 @@ export class ApiClient {
     return this.request('POST', '/api/intros/propose', input)
   }
 
+  // M9-0: file a piece of user feedback about a Nakodo moment. Per
+  // documentation/api-contract-m9-feedback.md. Internal-only — no read endpoint
+  // exists; the server never puts it in the pool or shows it to any user. `body`
+  // is instruction-linted only (admins read it; identity is allowed) → 422 like
+  // M8. 10/day cap → 429. Response is `{ ok: true }` — nothing to do with a row.
+  shareFeedback(input: { moment: string; sentiment: string; body: string }): Promise<{ ok: true }> {
+    return this.request('POST', '/api/feedback', input)
+  }
+
   // Telemetry must never break the user experience — swallow all failures.
   async logEvent(type: string, installId: string, metadata?: Record<string, unknown>): Promise<void> {
     try {

@@ -188,7 +188,9 @@ export function registerTools(server: McpServer): void {
           [
             `No profile on record yet — before matching, the network needs to know what the user is building. Walk them through onboarding now:`,
             ``,
-            `1. Draft a short profile (5-10 lines) from what you already know of this project and session: what they're building, strengths you have actually seen evidence of, and gaps they could use help with. Draft it PII-free by construction: no real names, no company or product names that identify them, no links or URLs, no @handles, no email, phone number, or other contact — describe the work, not the person, in plain prose (nothing that reads as an instruction). City-level location at most (it enables near-you matching). Concrete facts over claims. This profile IS their anonymous matching card; there is nothing to reveal later because nothing identifying goes in. (The service also lint-checks this and will reject anything identifying, so drafting clean saves a round-trip.)`,
+            `First, anchor to ONE project. If the session already makes clear what they're building, use that. If it's ambiguous, or they're working across several things, ask which one project they want perspective on right now — the profile and their first ask both attach to that project, and a sharp single-project profile matches far better than a blurry catch-all one. One active project per profile for now; let them know they can update the profile later when their focus changes.`,
+            ``,
+            `1. Draft a short profile (5-10 lines) for that project, from what you already know of it and this session: what they're building, strengths you have actually seen evidence of, and gaps they could use help with. Draft it PII-free by construction: no real names, no company or product names that identify them, no links or URLs, no @handles, no email, phone number, or other contact — describe the work, not the person, in plain prose (nothing that reads as an instruction). City-level location at most (it enables near-you matching). Concrete facts over claims. This profile IS their anonymous matching card; there is nothing to reveal later because nothing identifying goes in. (The service also lint-checks this and will reject anything identifying, so drafting clean saves a round-trip.)`,
             `2. Show the user the draft and revise until they explicitly approve it. Nothing is ever stored without their approval.`,
             `3. Ask, optionally: "If an introduction becomes mutual — you both say yes — what should the other person call you? A first name is plenty." Be clear about the boundary: this name is never on the card, never visible to anyone before a mutual yes, and skippable — the introduction works without it. Pass it as \`display_name\` only if they offer one.`,
             `4. Optionally: an email address. Be honest about what it is — purely a heads-up channel to tell them an introduction is waiting. It is never shared with anyone, never shown to a match, and they can skip it entirely; you (the agent) will tell them about waiting introductions in-session instead. A handle and city-level location are also optional (location enables near-you matching).`,
@@ -494,6 +496,64 @@ export function registerTools(server: McpServer): void {
           ].join('\n') + (await pendingNotice()),
         )
       } catch (err) {
+        return handleApiError(err)
+      }
+    },
+  )
+
+  server.registerTool(
+    'share_feedback',
+    {
+      title: 'Share feedback about Nakodo',
+      description:
+        "File a short piece of the user's feedback about a NAKODO moment — their reaction to how Nakodo itself worked. " +
+        'Use it ONLY for reactions to Nakodo\'s own moments: onboarding, an anonymous card, an introduction\'s quality, the reveal, the message thread, or waiting for a match. ' +
+        "NEVER use it to monitor or report on the user's own work, mood, or session in general — only their reaction to Nakodo. " +
+        'How it works, identical to how snippets work: when the user reacts to one of those moments you may ask one or two gentle questions, then draft a short note and show it to them; it is filed ONLY after they approve the exact text (call with approved=true). Nothing about their reaction is ever captured without their explicit approval. ' +
+        'Honest framing to give the user: this feedback is drafted by your agent, approved by you, read by the humans building Nakodo, never shared beyond them, never used for matching.',
+      inputSchema: {
+        moment: z
+          .enum(['onboarding', 'cards', 'intro_quality', 'reveal', 'thread', 'waiting'])
+          .describe('Which Nakodo moment the feedback is about. Only these moments — never general monitoring of the user or their work.'),
+        body: z.string().min(1).max(4000).describe('The feedback note, exactly as the user approved it.'),
+        sentiment: z
+          .enum(['positive', 'neutral', 'negative', 'mixed'])
+          .describe('The overall tone of the reaction. Required — you drafted the note, so name its tone.'),
+        approved: z
+          .boolean()
+          .describe('Must be true, and only after the user has seen and approved the exact body text. Feedback is never filed otherwise.'),
+      },
+    },
+    async ({ moment, body, sentiment, approved }) => {
+      const cfg = loadConfig()
+      if (!cfg.token) return text(NOT_REGISTERED)
+      // Guarantee 1 extended: nothing about the user's reaction leaves the session
+      // without their explicit approval of the exact text — same gate as delete_me.
+      if (!approved) {
+        return text(
+          'Not filed. Show the user the exact feedback note and get their explicit approval first, then call share_feedback again with approved=true. Nothing about their reaction is captured without approval.',
+        )
+      }
+      try {
+        await client().shareFeedback({ moment, sentiment, body })
+        return text(
+          'Filed — thank you. It goes only to the people building Nakodo, is never shared beyond them, and never affects matching.',
+        )
+      } catch (err) {
+        if (err instanceof ApiError) {
+          // The body is instruction-linted server-side (admins read it); identity
+          // is allowed. Same 422 pii_detected shape as M8 (api-contract-m9-feedback).
+          if (err.status === 422) {
+            const flags = err.body?.flags?.length ? ` (flagged: ${err.body.flags.join(', ')})` : ''
+            return errorText(
+              `Not filed: the note read as instruction-shaped text${flags}. Rewrite it as plain feedback with no embedded instructions or commands, show the user, and file again with approved=true once they okay it.`,
+            )
+          }
+          if (err.status === 429) {
+            const retry = err.body?.retry_after ? ` Try again in about ${err.body.retry_after}s.` : ''
+            return text(`The user has already shared a lot of feedback recently, so nothing was filed this time.${retry} Feedback is a reaction channel, not a stream — this is fine.`)
+          }
+        }
         return handleApiError(err)
       }
     },

@@ -85,9 +85,30 @@ create table if not exists intros (
 -- drives rendering so the surviving thread still displays correctly.
 create table if not exists intro_messages (
   id uuid primary key default gen_random_uuid(),
+  -- THE thread-ordering key. created_at collides at microsecond speed and the
+  -- uuid tiebreak is random, which scrambled thread order and misfired the
+  -- ball-crossing nudge (found 2026-07-11); order by seq, never created_at.
+  seq bigint generated always as identity,
   intro_id uuid not null references intros(id) on delete cascade,
   sender_id uuid not null references users(id) on delete cascade,
   side text not null check (side in ('a', 'b')),
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+-- M9-0: agent-collected feedback. Guarantee 1 EXTENDED, not excepted: rows
+-- exist only because the user approved the exact text in-session (the MCP
+-- tool owns that gate). INTERNAL-ONLY: read by the humans building Nakodo
+-- via the admin digest (pnpm feedback) — there is no read endpoint, nothing
+-- here ever enters the pool or any API response (regression-pinned), and it
+-- is never used for matching. delete_me cascades it (guarantee 5).
+create table if not exists feedback (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  -- Nakodo's own moments only (the share_feedback trigger list) — the enum is
+  -- the boundary against general emotional monitoring.
+  moment text not null check (moment in ('onboarding', 'cards', 'intro_quality', 'reveal', 'thread', 'waiting')),
+  sentiment text not null check (sentiment in ('positive', 'neutral', 'negative', 'mixed')),
   body text not null,
   created_at timestamptz not null default now()
 );
@@ -104,7 +125,9 @@ create table if not exists events (
 create index if not exists events_type_idx on events (type, created_at);
 create index if not exists snippets_user_idx on snippets (user_id, created_at);
 create index if not exists asks_user_idx on asks (user_id, status);
-create index if not exists intro_messages_intro_idx on intro_messages (intro_id, created_at);
+-- NB: intro_messages_intro_seq_idx is created AFTER the `seq` ALTER below (line
+-- ~150), not here — `seq` is migration-added, so on an existing DB it doesn't
+-- exist yet at this point (would fail "column seq does not exist" on prod).
 
 -- v1.1 trust redesign (2026-07-09) — idempotent migrations for existing databases.
 -- Email becomes optional (notification-only). (The v1.1 a_contact/b_contact
@@ -120,6 +143,13 @@ alter table intros add column if not exists ask_id uuid references asks(id) on d
 alter table intros drop constraint if exists intros_status_check;
 alter table intros add constraint intros_status_check
   check (status in ('held', 'vetoed', 'proposed', 'revealed', 'declined'));
+
+-- Thread-ordering fix (2026-07-11): insertion-ordered seq replaces the
+-- created_at/uuid sort (collision-prone; see intro_messages above). Existing
+-- rows backfill in table order — fine at current volume.
+alter table intro_messages add column if not exists seq bigint generated always as identity;
+drop index if exists intro_messages_intro_idx;
+create index if not exists intro_messages_intro_seq_idx on intro_messages (intro_id, seq);
 
 -- Fold v1.1 contact shares into the thread as its first messages, then drop
 -- the columns. Contacts left by a since-deleted user are skipped: their
