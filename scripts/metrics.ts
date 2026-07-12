@@ -107,7 +107,6 @@ const founderIntros = founderId
     )
   : 0
 
-<<<<<<< HEAD
 // Founder-welcome pass (concierge-playbook §23): every activated user's first
 // intro is Matthew. It's a MANUAL send (pnpm intro:send) — so the reliable
 // trigger is surfacing WHO still needs one. Activated (profile + ≥1 snippet),
