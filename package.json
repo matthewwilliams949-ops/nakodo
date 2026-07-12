@@ -22,6 +22,7 @@
     "db:apply": "tsx --env-file=.env scripts/db-apply.ts",
     "smoke:email": "tsx --env-file=.env scripts/smoke-email.ts",
     "metrics": "tsx --env-file=.env scripts/metrics.ts",
+    "probe": "tsx --env-file-if-exists=.env scripts/probe.ts",
     "e2e": "tsx --env-file=.env scripts/e2e-harness.ts",
     "sweep": "tsx --env-file=.env scripts/launch-sweep.ts",
     "feedback": "tsx --env-file=.env scripts/feedback.ts",

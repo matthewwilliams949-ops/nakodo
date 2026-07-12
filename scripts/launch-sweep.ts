@@ -23,7 +23,9 @@ if (!url) {
 
 const EXECUTE = process.argv.includes('--execute')
 const PERSONA_HANDLES = ['test-bo']
-const PERSONA_SOURCES = ['e2e-harness']
+// uptime-probe: synthetic rows from scripts/probe.ts — self-cleaning, listed
+// here only in case a probe run is mid-flight when the sweep fires.
+const PERSONA_SOURCES = ['e2e-harness', 'uptime-probe']
 
 const db = new pg.Client({ connectionString: url })
 
