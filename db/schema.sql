@@ -96,6 +96,23 @@ create table if not exists intro_messages (
   created_at timestamptz not null default now()
 );
 
+-- M9-0: agent-collected feedback. Guarantee 1 EXTENDED, not excepted: rows
+-- exist only because the user approved the exact text in-session (the MCP
+-- tool owns that gate). INTERNAL-ONLY: read by the humans building Nakodo
+-- via the admin digest (pnpm feedback) — there is no read endpoint, nothing
+-- here ever enters the pool or any API response (regression-pinned), and it
+-- is never used for matching. delete_me cascades it (guarantee 5).
+create table if not exists feedback (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  -- Nakodo's own moments only (the share_feedback trigger list) — the enum is
+  -- the boundary against general emotional monitoring.
+  moment text not null check (moment in ('onboarding', 'cards', 'intro_quality', 'reveal', 'thread', 'waiting')),
+  sentiment text not null check (sentiment in ('positive', 'neutral', 'negative', 'mixed')),
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists events (
   id bigint generated always as identity primary key,
   install_id text,
