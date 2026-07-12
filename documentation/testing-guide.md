@@ -5,9 +5,11 @@
 ## The panel
 
 ```
-cd ~/Personal/agent-networker   # (or the integrate checkout)
-pnpm e2e:panel                  # → http://localhost:4747
+cd ~/Personal/agent-networker-m8-integrate   # a checkout with a known-good prod .env
+pnpm e2e:panel                               # → http://localhost:4747
 ```
+
+It's a **long-running process** — leave it up in its own terminal for the session. If `http://localhost:4747` **refuses to connect**, it just isn't running: (re)start it with the command above (check nothing else holds the port with `lsof -ti:4747`). On boot it prints the target `app` + `db`; a `⚠ NON-LOCAL` db line is **expected** today — you're pointed at prod, which is the point, so the hygiene rules below are law.
 
 Local-only (binds 127.0.0.1, never deployed). One page:
 
