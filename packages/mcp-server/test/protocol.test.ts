@@ -53,6 +53,7 @@ describe('nakodo over stdio', () => {
     const { tools } = await client.listTools()
     expect(tools.map((t) => t.name).sort()).toEqual([
       'capture_snippet',
+      'connect_telegram',
       'create_profile',
       'delete_me',
       'find_collaborator',
@@ -62,6 +63,12 @@ describe('nakodo over stdio', () => {
       'share_feedback',
       'update_my_details',
     ])
+    // M9d: notification-only law + the user's own tap as the approval gate —
+    // pinned like every other guarantee phrasing.
+    const telegram = tools.find((t) => t.name === 'connect_telegram')!
+    expect(telegram.description).toContain('notification-only, never shared')
+    expect(telegram.description).toContain('press Start in their own Telegram app')
+    expect(telegram.description).toContain('no card content, no names')
     // M9-0: the honest framing is verbatim, load-bearing product surface
     const feedback = tools.find((t) => t.name === 'share_feedback')!
     expect(feedback.description).toContain(
@@ -99,6 +106,13 @@ describe('nakodo over stdio', () => {
     // M9a: project-aware onboarding — anchor to one project before drafting
     expect(out).toContain('anchor to ONE project')
     expect(out).toContain('update the profile later when their focus changes')
+    // Onboarding-arc (2026-07-12): the four load-bearing beats of the
+    // commissioned-search frame — each one is product surface, not phrasing taste.
+    expect(out).toContain('commissioning a search') // the frame itself
+    expect(out).toContain('TYPE of person') // the agent proposes the match hypothesis
+    expect(out).toContain('capture_snippet') // first snippet drafted from THIS session
+    expect(out).toContain('connect_telegram') // the how-you'll-hear contract at completion
+    expect(out).toContain('never push') // channel offer stays a light, one-time ask
     expect(api.state.events.some((e) => e.type === 'client_front_door_unregistered' || e.type === 'front_door_unregistered')).toBe(true)
   })
 

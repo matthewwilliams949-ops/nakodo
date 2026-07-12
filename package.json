@@ -27,7 +27,8 @@
     "sweep": "tsx --env-file=.env scripts/launch-sweep.ts",
     "feedback": "tsx --env-file=.env scripts/feedback.ts",
     "dev": "pnpm --filter web dev",
-    "e2e:panel": "tsx --env-file=.env scripts/e2e-panel.ts"
+    "e2e:panel": "tsx --env-file=.env scripts/e2e-panel.ts",
+    "telegram:setup": "tsx --env-file=.env scripts/telegram-setup.ts"
   },
   "devDependencies": {
     "pg": "^8.16.0",

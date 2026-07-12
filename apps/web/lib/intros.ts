@@ -3,6 +3,7 @@ import { generateToken } from './tokens'
 import { sendEmail } from './email'
 import { logEvent } from './events'
 import { introCard, revealNotice, messageWaiting } from '../emails/templates'
+import { notifyTelegram, tgIntroWaiting, tgRevealNotice, tgMessageWaiting } from './telegram'
 
 const TOKEN_TTL_DAYS = 14
 
@@ -37,13 +38,14 @@ interface UserRow {
   id: string
   email: string | null
   handle: string | null
+  telegram_chat_id: string | null
 }
 
 // Concierge lookup: accepts a user id, handle, or email. Email is optional in
 // v1.1, so id/handle must work as first-class identifiers.
 async function findUser(key: string): Promise<UserRow | null> {
   const { rows } = await getDb().query<UserRow>(
-    'select id, email, handle from users where id::text = $1 or handle = $1 or email = $1',
+    'select id, email, handle, telegram_chat_id from users where id::text = $1 or handle = $1 or email = $1',
     [key],
   )
   if (rows.length > 1) throw new Error(`ambiguous user key ${JSON.stringify(key)} — use the user id`)
@@ -80,10 +82,18 @@ export async function createIntro(input: {
     [userA, input.cardA, tokenA],
     [userB, input.cardB, tokenB],
   ] as const) {
-    if (!user.email) continue // no email: the agent surfaces the intro in-session
+    // Channels are independent, absence just skips (M9d rides the email
+    // pattern); no channel at all = the agent surfaces the intro in-session.
+    // Card links carry ?via= so card_viewed can attribute which channel
+    // actually got the card seen (the latency leading indicator, per channel).
     const base = `${appUrl()}/intro/${token}`
-    const mail = introCard(card, base)
-    await sendEmail({ to: user.email, ...mail })
+    if (user.email) {
+      await sendEmail({ to: user.email, ...introCard(card, `${base}?via=email`) })
+    }
+    // Telegram DM lands on a lock screen: intro-waiting text only, never the card.
+    if (user.telegram_chat_id) {
+      await notifyTelegram({ chatId: user.telegram_chat_id, text: tgIntroWaiting(`${base}?via=telegram`) })
+    }
   }
   await logEvent({ type: 'intro_proposed', metadata: { intro_id: id } })
   return { id }
@@ -198,14 +208,28 @@ async function sendRevealNotices(intro: IntroRow): Promise<void> {
   ]
   const ids = sides.map((s) => s.userId).filter((x): x is string => x !== null)
   if (ids.length < 2) return // a party deleted their account mid-intro; close silently
-  const { rows } = await db.query<{ id: string; email: string | null }>(
-    'select id, email from users where id = any($1)',
-    [ids],
-  )
-  for (const side of sides) {
+  const { rows } = await db.query<{
+    id: string
+    email: string | null
+    telegram_chat_id: string | null
+    display_name: string | null
+    handle: string | null
+  }>('select id, email, telegram_chat_id, display_name, handle from users where id = any($1)', [ids])
+  for (const [i, side] of sides.entries()) {
     const user = rows.find((u) => u.id === side.userId)
-    if (!user?.email) continue // no email: the agent surfaces the reveal in-session
-    await sendEmail({ to: user.email, ...revealNotice(`${appUrl()}/intro/${side.token}`) })
+    if (!user) continue
+    const url = `${appUrl()}/intro/${side.token}`
+    if (user.email) {
+      // Email carries no identity (unauthenticated, forwardable) — see above.
+      await sendEmail({ to: user.email, ...revealNotice(url) })
+    }
+    if (user.telegram_chat_id) {
+      // Post-mutual-yes the counterpart's reveal name is allowed (M9d spec);
+      // same fallback chain as the reveal page: display_name → handle → none.
+      const other = rows.find((u) => u.id === sides[1 - i]!.userId)
+      const name = other ? (other.display_name ?? other.handle ?? null) : null
+      await notifyTelegram({ chatId: user.telegram_chat_id, text: tgRevealNotice(url, name) })
+    }
   }
 }
 
@@ -296,13 +320,18 @@ async function notifyMessageWaiting(intro: IntroRow, targetSide: 'a' | 'b'): Pro
   const targetId = targetSide === 'a' ? intro.user_a : intro.user_b
   const targetToken = targetSide === 'a' ? intro.token_a : intro.token_b
   if (!targetId) return
-  const { rows } = await getDb().query<{ email: string | null }>(
-    'select email from users where id = $1',
+  const { rows } = await getDb().query<{ email: string | null; telegram_chat_id: string | null }>(
+    'select email, telegram_chat_id from users where id = $1',
     [targetId],
   )
-  const email = rows[0]?.email
-  if (!email) return
-  await sendEmail({ to: email, ...messageWaiting(`${appUrl()}/intro/${targetToken}`) })
+  const target = rows[0]
+  if (!target) return
+  const url = `${appUrl()}/intro/${targetToken}`
+  if (target.email) await sendEmail({ to: target.email, ...messageWaiting(url) })
+  // Identity-free like the email: "a message is waiting", never the body or a name.
+  if (target.telegram_chat_id) {
+    await notifyTelegram({ chatId: target.telegram_chat_id, text: tgMessageWaiting(url) })
+  }
 }
 
 export async function getIntroMessages(introId: string): Promise<IntroMessage[]> {
@@ -355,12 +384,19 @@ export async function approveProposal(id: string): Promise<boolean> {
   const intro = rows[0]
   if (!intro) return false
   if (intro.user_b) {
-    const target = await db.query<{ email: string | null }>('select email from users where id = $1', [
-      intro.user_b,
-    ])
+    const target = await db.query<{ email: string | null; telegram_chat_id: string | null }>(
+      'select email, telegram_chat_id from users where id = $1',
+      [intro.user_b],
+    )
+    const url = `${appUrl()}/intro/${intro.token_b}`
     const email = target.rows[0]?.email
     if (email) {
-      await sendEmail({ to: email, ...introCard(intro.card_b, `${appUrl()}/intro/${intro.token_b}`) })
+      await sendEmail({ to: email, ...introCard(intro.card_b, `${url}?via=email`) })
+    }
+    const chatId = target.rows[0]?.telegram_chat_id
+    if (chatId) {
+      // Lock-screen rule: the DM says an introduction waits — the card stays on the page.
+      await notifyTelegram({ chatId, text: tgIntroWaiting(`${url}?via=telegram`) })
     }
   }
   await logEvent({ type: 'intro_proposed', metadata: { intro_id: id, via: 'agent_approved' } })

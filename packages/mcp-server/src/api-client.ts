@@ -184,6 +184,17 @@ export class ApiClient {
     return this.request('POST', `/api/intro/${encodeURIComponent(token)}`, { message, ask_id })
   }
 
+  // M9d tier 2: mint a one-time Telegram deep link (30-min expiry). The user
+  // taps Start in their own Telegram app — that tap is the approval that binds.
+  // 503 telegram_not_configured until the bot exists in the environment.
+  connectTelegram(): Promise<{ url: string; expires_in_minutes: number }> {
+    return this.request('POST', '/api/me/telegram')
+  }
+
+  disconnectTelegram(): Promise<{ ok: true }> {
+    return this.request('DELETE', '/api/me/telegram')
+  }
+
   // Telemetry must never break the user experience — swallow all failures.
   async logEvent(type: string, installId: string, metadata?: Record<string, unknown>): Promise<void> {
     try {
