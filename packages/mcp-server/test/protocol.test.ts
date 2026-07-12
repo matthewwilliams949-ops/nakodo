@@ -288,15 +288,18 @@ describe('nakodo over stdio', () => {
     expect(api.state.reconnects).toHaveLength(1) // unchanged
   })
 
-  it('propose_intro creates a held intro after the user approves a card', async () => {
+  it('propose_intro delivers directly after the user approves a card (2026-07-12: review removed)', async () => {
     const out = await callText('propose_intro', {
       card_id: 'c1',
       ask_id: poolAskId,
       why_for_them: 'They get a backend counterpart who has shipped a similar memory layer.',
       why_for_me: 'A design-literate reviewer for my onboarding flow.',
     })
-    expect(out).toContain('held')
+    expect(out).toContain('Sent — delivered')
+    expect(out).not.toContain('review') // no review gate in the story the agent tells
     expect(out).toContain('1 of 2 proposals open')
+    // the channel moment rides the send: a concrete pending thing to be notified about
+    expect(out).toContain('connect_telegram')
     // 0.2.3 finding: an agent stated unverifiable outbound status as fact
     // ("still pending on their side") — the honesty clause is load-bearing
     expect(out).toContain('invisible by design')

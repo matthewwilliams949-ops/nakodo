@@ -34,7 +34,7 @@ export interface MockState {
   pendingIntros: { url: string; state?: PendingState; created_at: string }[]
   // The anonymous pool the server would return to this user (self already excluded).
   pool: PoolCard[]
-  // Proposals this user has submitted; each becomes a `held` intro.
+  // Proposals this user has submitted; each delivers directly as a `proposed` intro (2026-07-12: review removed).
   proposals: { card_id: string; ask_id: string; why_for_them: string; why_for_me: string }[]
   // Cards whose target can't receive a proposal right now → propose returns 409 target_busy.
   overProposedCardIds: string[]
@@ -222,8 +222,8 @@ export async function startMockApi(): Promise<MockApi> {
           })
           return json(201, {
             intro_id: `i${state.proposals.length}`,
-            status: 'held',
-            note: 'Held for human review before anything reaches them.',
+            status: 'proposed',
+            note: 'Delivered — they have your anonymous card and will accept or decline in their own time.',
             open_outbound: state.proposals.length,
           })
         }

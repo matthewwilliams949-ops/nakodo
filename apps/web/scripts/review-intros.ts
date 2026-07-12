@@ -1,3 +1,6 @@
+// EMERGENCY BRAKE (2026-07-12): the live propose path skips 'held' — proposals
+// deliver directly. This CLI only has work if the propose route is flipped back
+// to inserting 'held' rows (see app/api/intros/propose/route.ts header).
 // M8 seed-phase review (T6): Matthew's weekly one-click quality floor over
 // agent proposals. Shows exactly what the target WOULD see plus the
 // proposer's why_for_me (intent signal) — no identity fields, nothing else.

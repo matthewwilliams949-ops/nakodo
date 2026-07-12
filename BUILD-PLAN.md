@@ -178,6 +178,10 @@ Each is sized to roughly one agent session and has a **machine-verifiable done-c
 - [ ] Acquisition consult ping sent (first-session experience ≈ install promise boundary) — non-blocking unless they object
 - [ ] Ops (no code): founder-welcome pass = same-day loop during seed window; watch card-seen-by-channel daily
 
+**First-match flow + review removal** *(Matthew's spec + call, 2026-07-12 — strategy addendum in `documentation/onboarding-first-connection.md`)*
+- [x] BUILT (Activation, 2026-07-12, `m9e/first-match-flow`): propose delivers directly — status `'proposed'` at insert, target notified immediately (shared `sendIntroCardNotices`, email+Telegram, ?via-tagged), `intro_proposed` event carries `via: 'agent_direct'` + why_for_me for quality audits; lint/caps/dampening/invisible-declines unchanged; held/approve/veto machinery kept as documented EMERGENCY BRAKE (route header + review CLI + brake-mode tests). Guidance: recommendation-first calibration ("I found someone — here's why them"), channel question rides the send, project phase in the profile spec, "day or two" promise removed (CTO honesty flag resolved). Contract addendum in api-contract-m8.md; playbook addendum (Matthew's job flips to answering inbound fast). 112 web + 35 MCP green
+- [ ] Safety co-review requested (intro write-path change; silence rules pinned unchanged) → CTO merge gate; CEO FYI filed (review removal on the record)
+
 **Seed-window ops tooling *(small, post-0.2.2, only if the manual loop proves unreliable)*:**
 - [ ] **Founder-welcome pre-draft helper.** Today the trigger is surfaced (`pnpm metrics` ▶ FOUNDER-WELCOME PASS lists activated users with no founder intro) and the send is manual (`pnpm intro:send`, warmth-by-hand — deliberate). If that manual loop starts missing people at volume, build a helper that lists un-welcomed activations AND pre-drafts each founder card from their record, leaving Matthew to edit+send. Human stays in the loop; kills the silent-miss risk. Trigger to build: a missed founder-welcome is observed, or activations outpace the ≤30-min/week concierge budget. Do NOT auto-send (kills the warmth that is the whole point).
 
