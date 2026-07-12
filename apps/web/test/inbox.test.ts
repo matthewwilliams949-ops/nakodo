@@ -128,24 +128,37 @@ describe('inboxData — the desk read model', () => {
     expect(d.people[0]!.reconnected).toBe(true)
   })
 
-  it('a declined intro drops from BOTH inboxes — consistent with the pending endpoint; the token link keeps the fiction', async () => {
+  it("a decline drops from the DECLINER's inbox but PERSISTS for the other side (Safety ruling: guarantee 4)", async () => {
     const alice = await mkUser('alice')
     const bob = await mkUser('bob', { display_name: 'Bob' })
     const { id } = await createIntro({ userA: 'alice', userB: 'bob', cardA: 'card a', cardB: 'card b' })
     const tokenA = (await pg.query<{ token_a: string }>('select token_a from intros where id = $1', [id])).rows[0]!.token_a
     await respondToIntro(tokenA, 'declined')
-    // Alice declined → status is now 'declined' globally, so the intro leaves
-    // the list on BOTH sides — exactly how the agent pending endpoint (lists
-    // only 'proposed') already behaves. The decline itself stays invisible:
-    // Bob's own token link still resolves to 'card' (pinned in api.test.ts),
-    // and a disappearance is ambiguous with expiry. (Design question flagged to
-    // Safety: should a declined-by-other card instead PERSIST in the
-    // recipient's inbox for maximum invisibility? This matches shipped behavior.)
+    // Alice declined → her own view is 'closed', so it leaves HER inbox.
     expect((await inboxData(alice)).needsYou).toHaveLength(0)
     expect((await inboxData(alice)).people).toHaveLength(0)
+    // Bob (the non-decliner, response still null) must STILL see his card —
+    // rendered from his own view, never the intro's global 'declined' status —
+    // so Alice's decline is indistinguishable from waiting (Safety ruling
+    // 2026-07-12; mirrors the token-link viewFor exactly).
     const bd = await inboxData(bob)
-    expect(bd.needsYou).toHaveLength(0)
-    expect(bd.people).toHaveLength(0)
+    expect(bd.needsYou).toHaveLength(1)
+    expect(bd.needsYou[0]!.card).toBe('card b')
+  })
+
+  it('an intro I accepted but the other side declined still reads as waiting — never as a decline', async () => {
+    const alice = await mkUser('alice')
+    const bob = await mkUser('bob', { display_name: 'Bob' })
+    const { id } = await createIntro({ userA: 'alice', userB: 'bob', cardA: 'card a', cardB: 'card b' })
+    const { token_a, token_b } = (
+      await pg.query<{ token_a: string; token_b: string }>('select token_a, token_b from intros where id = $1', [id])
+    ).rows[0]!
+    await respondToIntro(token_a, 'accepted') // alice says yes
+    await respondToIntro(token_b, 'declined') // bob declines → status 'declined'
+    const ad = await inboxData(alice)
+    expect(ad.waitingOnThem).toBe(1) // alice still just sees "waiting on their yes"
+    expect(ad.people).toHaveLength(0)
+    expect(ad.needsYou).toHaveLength(0)
   })
 })
 

@@ -1,5 +1,5 @@
 import { getDb } from './db'
-import { appUrl, getIntroMessages, getRevealParties, threadTurn, type IntroRow, type ThreadTurn } from './intros'
+import { appUrl, getIntroMessages, getRevealParties, threadTurn, viewFor, type IntroRow, type ThreadTurn } from './intros'
 
 // The /inbox read model (M9c). One pass over the signed-in user's own intros,
 // keyed by SESSION user id — own data only, the boundary the libs already
@@ -55,11 +55,19 @@ function ms(d: string | Date): number {
 export async function inboxData(userId: string): Promise<InboxData> {
   const db = getDb()
 
+  // Safety ruling (2026-07-12, guarantee 4): the read model keys off the
+  // VIEWER'S OWN view — never the intro's global status — so a decline by the
+  // other side is indistinguishable from waiting, exactly as the token-link
+  // `viewFor` already behaves. We fetch everything the target is allowed to see
+  // ('held'/'vetoed' are invisible to the target — token lookups exclude them)
+  // and let viewFor decide each row. A globally-'declined' intro therefore
+  // still surfaces to the NON-decliner as their card/waiting; only the person
+  // who themselves declined (view 'closed') drops.
   const { rows: intros } = await db.query<IntroRow & { resolved_at: string | null }>(
     `select id, user_a, user_b, proposed_by, ask_id, card_a, card_b, a_response, b_response,
             status, token_a, token_b, token_expires_at, resolved_at
      from intros
-     where (user_a = $1 or user_b = $1) and status in ('proposed', 'revealed')`,
+     where (user_a = $1 or user_b = $1) and status not in ('held', 'vetoed')`,
     [userId],
   )
 
@@ -84,18 +92,21 @@ export async function inboxData(userId: string): Promise<InboxData> {
   for (const r of intros) {
     const side = r.user_a === userId ? 'a' : 'b'
     const url = `${appUrl()}/intro/${side === 'a' ? r.token_a : r.token_b}`
+    const view = viewFor(r, side) // the viewer's OWN view — same call as the token link
 
-    if (r.status === 'proposed') {
-      const own = side === 'a' ? r.a_response : r.b_response
-      if (own === null && ms(r.token_expires_at) > Date.now()) {
-        // An anonymous card awaiting your answer — the intro engine's live moment.
-        needsYou.push({ url, card: side === 'a' ? r.card_a : r.card_b })
-      } else if (own === 'accepted') {
-        // You said yes, they haven't — the quiet nameless "waiting" line.
-        waitingOnThem += 1
-      }
-      continue // a proposed intro is not yet a person — the people list is revealed only
+    if (view === 'card') {
+      // An anonymous card awaiting your answer — the intro engine's live moment.
+      // (Persists even if the OTHER side has declined: their decline is silent.)
+      needsYou.push({ url, card: side === 'a' ? r.card_a : r.card_b })
+      continue
     }
+    if (view === 'waiting') {
+      // You said yes, they haven't (or they declined — you can't tell): the
+      // quiet nameless "waiting" line.
+      waitingOnThem += 1
+      continue
+    }
+    if (view !== 'revealed') continue // 'closed' (you declined) or 'expired' — not shown
 
     // revealed → a person and a thread
     const messages = await getIntroMessages(r.id)
