@@ -1390,6 +1390,27 @@ describe('M9d tier 2 — Telegram notify', () => {
     expect(user.telegram_chat_id).toBeNull()
   })
 
+  it('a stale /start never severs an existing binding (expired token = complete no-op)', async () => {
+    const bearerA = await registerUser('a@example.com', { handle: 'alice' })
+    const bearerB = await registerUser('b@example.com', { handle: 'bob' })
+    await bindTelegram(bearerA, '555')
+    const staleToken = await mintLink(bearerB)
+    await pg.query("update users set telegram_link_expires_at = now() - interval '1 minute' where telegram_link_token = $1", [
+      staleToken,
+    ])
+
+    sentTelegrams = []
+    const res = await telegramWebhook(tgUpdate('555', `/start ${staleToken}`))
+    expect(res.status).toBe(200)
+    expect(sentTelegrams[0]!.text).toContain('ask your agent') // not-bound reply, nothing leaked
+
+    const rows = (
+      await pg.query<{ handle: string; telegram_chat_id: string | null }>('select handle, telegram_chat_id from users order by handle')
+    ).rows
+    expect(rows.find((r) => r.handle === 'alice')!.telegram_chat_id).toBe('555') // binding survives
+    expect(rows.find((r) => r.handle === 'bob')!.telegram_chat_id).toBeNull()
+  })
+
   it('rebinding a chat to a second account unbinds the first (one account per chat)', async () => {
     const bearerA = await registerUser('a@example.com', { handle: 'alice' })
     const bearerB = await registerUser('b@example.com', { handle: 'bob' })

@@ -37,7 +37,17 @@ export async function POST(req: Request): Promise<Response> {
   const start = text.match(/^\/start(?:\s+(\S+))?/)
   if (start) {
     const token = start[1]
-    if (token) {
+    // Gate on the token being redeemable RIGHT NOW: an expired or unknown
+    // token must be a complete no-op — otherwise a stale /start link severs
+    // the chat's working connection before the bind below fails.
+    const redeemable =
+      token &&
+      (
+        await db.query('select 1 from users where telegram_link_token = $1 and telegram_link_expires_at > now()', [
+          token,
+        ])
+      ).rows.length > 0
+    if (redeemable) {
       // Bind on a valid, unexpired token; the token is single-use. A chat can
       // back exactly one account (unique column), so unbind any previous owner
       // first — delete-and-reregister is the common case. Two statements, not
