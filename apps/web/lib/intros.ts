@@ -268,7 +268,13 @@ export async function postIntroMessage(
   // the ball CROSSES into their court — i.e. their own message was the previous
   // latest and this one answers it. The first hello (empty thread) is covered
   // by revealNotice; consecutive messages from the same side never re-nudge.
-  if (prevLatest && prevLatest.side === otherSide) {
+  // M9b gate exception (CTO, 2026-07-12): a reconnect (askId present) is a NEW
+  // knock carrying a new ask, not a consecutive nag — in a dormant thread the
+  // reconnector's own message is usually the latest, and without this the
+  // reconnect is silent to an email-only counterpart (the exact unnoticed-
+  // intro failure M9d exists to fix). The reconnect tool promises "notified
+  // the normal way"; this makes that true.
+  if ((prevLatest && prevLatest.side === otherSide) || askId !== undefined) {
     await notifyMessageWaiting(intro, otherSide)
   }
 

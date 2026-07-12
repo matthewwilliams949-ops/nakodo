@@ -1282,4 +1282,26 @@ describe('M9b — prior-connection pool marking + reconnect attribution', () => 
     })
     expect((await pg.query("select * from events where type = 'rematch_reconnected'")).rows).toHaveLength(0)
   })
+
+  it('GATE FIX PIN: a reconnect notifies the counterpart even when the reconnector spoke last (a new knock beats the anti-nag rule)', async () => {
+    const { alice, tokenA } = await circle()
+    // dormant-thread state: alice's own message is the latest
+    await respondIntro(jsonReq(`/api/intro/${tokenA}`, 'POST', { message: 'thanks, talk soon!' }), {
+      params: Promise.resolve({ token: tokenA }),
+    })
+    sentEmails = []
+    // a consecutive plain message stays silent (anti-nag unchanged) …
+    await respondIntro(jsonReq(`/api/intro/${tokenA}`, 'POST', { message: 'one more thing' }), {
+      params: Promise.resolve({ token: tokenA }),
+    })
+    expect(sentEmails).toHaveLength(0)
+    // … but a reconnect carrying a new ask is a new knock: bob gets the email
+    await respondIntro(
+      jsonReq(`/api/intro/${tokenA}`, 'POST', { message: 'new project — can I pick your brain?', ask_id: alice.askId }),
+      { params: Promise.resolve({ token: tokenA }) },
+    )
+    expect(sentEmails).toHaveLength(1)
+    expect(sentEmails[0]!.to).toBe('bob.secret@example.com')
+    expect(sentEmails[0]!.subject).toContain('message is waiting')
+  })
 })
