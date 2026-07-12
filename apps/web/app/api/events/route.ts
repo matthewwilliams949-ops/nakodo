@@ -13,6 +13,11 @@ const Body = z.object({
 export async function POST(req: Request): Promise<Response> {
   const parsed = Body.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return Response.json({ error: 'invalid_body' }, { status: 400 })
+  // Unauthenticated endpoint (audit 2026-07-12): cap metadata so it can't be
+  // used to bulk-load the events table. Telemetry is small by nature.
+  if (parsed.data.metadata && JSON.stringify(parsed.data.metadata).length > 8_192) {
+    return Response.json({ error: 'metadata_too_large' }, { status: 400 })
+  }
   const user = await authenticate(req) // optional; attaches user_id when present
   await logEvent({
     type: `client_${parsed.data.type}`, // namespaced so clients can't forge server events
