@@ -1,6 +1,7 @@
 import { authenticate, unauthorized } from '../../../lib/auth'
 import { getDb } from '../../../lib/db'
 import { logEvent } from '../../../lib/events'
+import { appUrl } from '../../../lib/intros'
 
 // GET /api/pool — the whole anonymous pool for the caller's agent to judge
 // in-context (contract: documentation/api-contract-m8.md). v1 is deliberately
@@ -49,7 +50,19 @@ export async function GET(req: Request): Promise<Response> {
     )
   }
 
-  const { rows } = await db.query<{ card_id: string; profile: string; snippets: unknown }>(
+  // M9b: prior-connection marking (contract: api-contract-m9b.md). A card is
+  // marked iff an intro between requester and card owner has REVEALED — never
+  // anything less (held/proposed/declined marking would leak consideration,
+  // guarantee 4). The lateral picks the REQUESTER's own token: reconnect_url
+  // is a credential they already hold, never the counterpart's, never a name.
+  // A deleted counterpart's intro side is SET NULL, so the pair join fails and
+  // marking stops — guarantee 5 for free.
+  const { rows } = await db.query<{
+    card_id: string
+    profile: string
+    snippets: unknown
+    reconnect_token: string | null
+  }>(
     `select p.card_id, p.body as profile,
        coalesce(
          (select json_agg(s2) from (
@@ -58,29 +71,49 @@ export async function GET(req: Request): Promise<Response> {
             order by s.created_at desc limit ${SNIPPETS_PER_CARD}
           ) s2),
          '[]'::json
-       ) as snippets
+       ) as snippets,
+       pc.reconnect_token
      from profiles p
+     left join lateral (
+       select case when i.user_a = $1 then i.token_a else i.token_b end as reconnect_token
+       from intros i
+       where i.status = 'revealed'
+         and ((i.user_a = $1 and i.user_b = p.user_id) or (i.user_b = $1 and i.user_a = p.user_id))
+       order by i.created_at desc
+       limit 1
+     ) pc on true
      where p.user_id <> $1
      order by p.card_id`,
     [user.id],
   )
+
+  // Stranger cards stay byte-identical to M8 (fields omitted, not false) —
+  // the zero-identity pin passes verbatim on them.
+  const pool = rows.map(({ card_id, profile, snippets, reconnect_token }) => ({
+    card_id,
+    profile,
+    snippets,
+    ...(reconnect_token
+      ? { prior_connection: true, reconnect_url: `${appUrl()}/intro/${reconnect_token}` }
+      : {}),
+  }))
 
   // CTO tripwire (2026-07-10 ruling): whole-pool responses are load-bearing at
   // seed scale (N<50, per contract) but must not silently outgrow it. Warning
   // event from 40; HARD FAIL past 50 — serving an unbounded pool at scale is a
   // guarantee-3 hazard, so the endpoint refuses until bounding+ranking ship
   // (a named contract-change gate, not a tuning knob).
-  if (rows.length > 50) {
-    await logEvent({ type: 'pool_size_tripwire', metadata: { pool_size: rows.length, hard_fail: true } })
-    console.error(`pool exceeds the whole-fetch contract threshold (${rows.length} cards) — bounding+ranking required`)
+  if (pool.length > 50) {
+    await logEvent({ type: 'pool_size_tripwire', metadata: { pool_size: pool.length, hard_fail: true } })
+    console.error(`pool exceeds the whole-fetch contract threshold (${pool.length} cards) — bounding+ranking required`)
     return Response.json(
       { error: 'pool_unbounded', hint: 'The pool has outgrown whole-fetch serving. This is a deliberate stop, not an outage.' },
       { status: 503 },
     )
   }
-  await logEvent({ type: 'pool_fetched', userId: user.id, metadata: { pool_size: rows.length } })
-  if (rows.length >= 40) {
-    await logEvent({ type: 'pool_size_tripwire', metadata: { pool_size: rows.length, hard_fail: false } })
+  await logEvent({ type: 'pool_fetched', userId: user.id, metadata: { pool_size: pool.length } })
+  if (pool.length >= 40) {
+    await logEvent({ type: 'pool_size_tripwire', metadata: { pool_size: pool.length, hard_fail: false } })
   }
-  return Response.json({ pool: rows, generated_at: new Date().toISOString() })
+  return Response.json({ pool, generated_at: new Date().toISOString() })
 }

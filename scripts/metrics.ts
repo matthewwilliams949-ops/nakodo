@@ -107,6 +107,7 @@ const founderIntros = founderId
     )
   : 0
 
+<<<<<<< HEAD
 // Founder-welcome pass (concierge-playbook §23): every activated user's first
 // intro is Matthew. It's a MANUAL send (pnpm intro:send) — so the reliable
 // trigger is surfacing WHO still needs one. Activated (profile + ≥1 snippet),
@@ -153,6 +154,45 @@ const responseLatency = await medianHours(`
   where r.responded is not null
     and i.created_at > now() - interval '14 days' and i.status not in ('held', 'vetoed')`)
 
+// M9b CIRCLE line: the retention backbone — rematches proposed by agents
+// (client_rematch_proposed, metadata { ask_id, card_ids }: fired via
+// /api/events, hence the client_ prefix) vs. reconnects that landed in an old
+// thread (rematch_reconnected, server-fired, metadata carries intro_id).
+// Founder exclusion, same rule as gate 4 — the two events carry different
+// keys, so each maps to the founder its own way (contract: api-contract-m9b.md).
+const rematchesProposed = Number(
+  (
+    await db.query(
+      `select count(*) n from events e
+       where e.type = 'client_rematch_proposed'
+         ${founderId ? `
+         -- excluded when the asking user is the founder, or when every
+         -- surfaced prior-connection card is the founder's own card
+         and not exists (
+           select 1 from asks a
+           where a.id::text = e.metadata->>'ask_id' and a.user_id = $1)
+         and exists (
+           select 1 from jsonb_array_elements_text(e.metadata->'card_ids') c
+           join profiles p on p.card_id::text = c.value
+           where p.user_id <> $1)` : ''}`,
+      founderId ? [founderId] : [],
+    )
+  ).rows[0]?.n ?? 0,
+)
+const rematchesReconnected = Number(
+  (
+    await db.query(
+      `select count(*) n from events e
+       where e.type = 'rematch_reconnected'
+         ${founderId ? `and not exists (
+           select 1 from intros i
+           where i.id::text = e.metadata->>'intro_id'
+             and (i.user_a = $1 or i.user_b = $1))` : ''}`,
+      founderId ? [founderId] : [],
+    )
+  ).rows[0]?.n ?? 0,
+)
+
 const bySource = (
   await db.query<{ source: string | null; n: string }>(
     'select source, count(*) n from users group by source order by n desc',
@@ -183,6 +223,7 @@ console.log(`INTROS      proposed (delivered): ${introsProposed} · accepted —
 console.log(`EXCHANGE    real exchanges (peer-to-peer, both sides messaged): ${exchanges}` +
   (founderId ? `  ·  founder-welcome (excluded from gate): ${founderIntros} intros, ${founderExchanges} exchanges` : ''))
 console.log(`LATENCY     median proposed→card-seen: ${seenLatency} · proposed→response: ${responseLatency}  (14-day window, per side)`)
+console.log(`CIRCLE      rematches proposed: ${rematchesProposed} · reconnected (message landed in an old thread): ${rematchesReconnected}`)
 if (founderId) {
   console.log(`\n▶ FOUNDER-WELCOME PASS — activated, no founder intro yet (send each via \`pnpm intro:send\`):`)
   if (founderPassDue.length === 0) console.log('  (none — every activated user has been welcomed)')

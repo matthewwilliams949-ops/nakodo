@@ -216,7 +216,11 @@ async function sendRevealNotices(intro: IntroRow): Promise<void> {
 export async function postIntroMessage(
   token: string,
   body: string,
-): Promise<{ view: IntroView; posted: boolean } | null> {
+  // M9b: attributes a reconnect message to the ask that motivated it (contract:
+  // api-contract-m9b.md). Must be the POSTING user's own OPEN ask — anything
+  // else rejects the whole post, loudly, so the CIRCLE metric stays honest.
+  askId?: string,
+): Promise<{ view: IntroView; posted: boolean; badAsk?: true } | null> {
   const found = await findIntroByToken(token)
   if (!found) return null
   const { intro, side } = found
@@ -225,6 +229,14 @@ export async function postIntroMessage(
 
   const senderId = side === 'a' ? intro.user_a : intro.user_b
   if (!senderId) return { view, posted: false } // sender deleted their account
+
+  if (askId !== undefined) {
+    const ask = await getDb().query(
+      "select 1 from asks where id = $1 and user_id = $2 and status = 'open'",
+      [askId, senderId],
+    )
+    if (!ask.rows[0]) return { view, posted: false, badAsk: true }
+  }
 
   // Read the thread BEFORE inserting: the previous latest message decides both
   // the completion event and whether this crosses the ball into the other court.
@@ -258,6 +270,15 @@ export async function postIntroMessage(
   // by revealNotice; consecutive messages from the same side never re-nudge.
   if (prevLatest && prevLatest.side === otherSide) {
     await notifyMessageWaiting(intro, otherSide)
+  }
+
+  // M9b: the reconnect landed in the existing thread — count the circle.
+  if (askId !== undefined) {
+    await logEvent({
+      type: 'rematch_reconnected',
+      userId: senderId,
+      metadata: { intro_id: intro.id, ask_id: askId, side },
+    })
   }
 
   return { view: 'revealed', posted: true }
