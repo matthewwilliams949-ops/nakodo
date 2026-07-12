@@ -38,7 +38,10 @@ async function main(): Promise<void> {
   ).rows
   const survivors = (
     await db.query<{ id: string; handle: string | null; email: string | null }>(
-      'select id, handle, email from users where not (handle = any($1) or source = any($2))',
+      // IS NOT TRUE, not NOT(...): a NULL handle (e.g. user #1, email-only) makes the
+      // OR evaluate NULL, and NOT NULL drops the row — survivors read 0 and the
+      // zero-users guard rail refuses a sweep that is actually safe.
+      'select id, handle, email from users where (handle = any($1) or source = any($2)) is not true',
       [PERSONA_HANDLES, PERSONA_SOURCES],
     )
   ).rows
