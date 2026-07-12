@@ -1,0 +1,43 @@
+# Synthetic uptime probe on the intro flow (Safety lane). "Vercel green" is
+# not the metric — the flow completing is. Runs every 15 minutes against prod;
+# a failed run fails the workflow, and GitHub notifies on scheduled-workflow
+# failure. Manual trigger available for spot checks.
+#
+# PUBLIC REPO: logs are public. scripts/probe.main.ts prints leg names,
+# statuses, and latencies only — never tokens, links, or content. Keep it so.
+#
+# Secrets (repo settings → Actions secrets, Matthew-only):
+#   PROBE_DATABASE_URL — prod Postgres (seed/cleanup of tagged probe rows)
+#   PROBE_SECRET       — must match the app's PROBE_SECRET (Vercel env);
+#                        gates /api/health
+name: probe
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: intro-flow-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm probe
+        env:
+          APP_URL: https://nakodo.dev
+          DATABASE_URL: ${{ secrets.PROBE_DATABASE_URL }}
+          PROBE_SECRET: ${{ secrets.PROBE_SECRET }}
