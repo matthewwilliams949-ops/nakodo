@@ -2,6 +2,12 @@ import type { Metadata } from 'next'
 import { findIntroByToken, getIntroMessages, getRevealParties, threadTurn, viewFor } from '../../../lib/intros'
 import { logEvent } from '../../../lib/events'
 import { Composer } from './Composer'
+import { EnableNotifications } from './EnableNotifications'
+
+// M9d tier 1: the public VAPID key is safe to hand the client (public by
+// definition). Empty when unset = channel off, and EnableNotifications renders
+// nothing without it.
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY ?? ''
 
 export const dynamic = 'force-dynamic'
 
@@ -56,7 +62,8 @@ export default async function IntroPage({
     // via = which notification channel delivered this view (whitelist — the
     // query string is caller-controlled text, never stored raw).
     const rawVia = (await searchParams).via
-    const via = rawVia === 'email' || rawVia === 'telegram' || rawVia === 'session' ? rawVia : undefined
+    const via =
+      rawVia === 'email' || rawVia === 'telegram' || rawVia === 'push' || rawVia === 'session' ? rawVia : undefined
     await logEvent({ type: 'card_viewed', metadata: { intro_id: intro.id, side, ...(via ? { via } : {}) } })
   }
 
@@ -83,6 +90,7 @@ export default async function IntroPage({
       <main>
         <h1>You said yes</h1>
         <p className="muted">If they say yes too, this page opens into your introduction — your agent will tell you, and if you left an email, so will we. If not, you&apos;ll never hear about this again — silence is normal here.</p>
+        {VAPID_PUBLIC_KEY ? <EnableNotifications token={token} vapidKey={VAPID_PUBLIC_KEY} moment="waiting" /> : null}
       </main>
     )
   }
@@ -151,6 +159,8 @@ export default async function IntroPage({
             call, or trading a look at what you&apos;re each building and one piece of honest feedback.
           </p>
         ) : null}
+
+        {VAPID_PUBLIC_KEY ? <EnableNotifications token={token} vapidKey={VAPID_PUBLIC_KEY} moment="revealed" /> : null}
       </main>
     )
   }

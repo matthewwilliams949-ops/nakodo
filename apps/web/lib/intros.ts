@@ -4,6 +4,13 @@ import { sendEmail } from './email'
 import { logEvent } from './events'
 import { introCard, revealNotice, messageWaiting } from '../emails/templates'
 import { notifyTelegram, tgIntroWaiting, tgRevealNotice, tgMessageWaiting } from './telegram'
+import {
+  notifyPush,
+  pushIntroWaiting,
+  pushRevealNotice,
+  pushMessageWaiting,
+  type PushSubscription,
+} from './push'
 
 const TOKEN_TTL_DAYS = 14
 
@@ -39,13 +46,14 @@ interface UserRow {
   email: string | null
   handle: string | null
   telegram_chat_id: string | null
+  push_subscription: PushSubscription | null
 }
 
 // Concierge lookup: accepts a user id, handle, or email. Email is optional in
 // v1.1, so id/handle must work as first-class identifiers.
 async function findUser(key: string): Promise<UserRow | null> {
   const { rows } = await getDb().query<UserRow>(
-    'select id, email, handle, telegram_chat_id from users where id::text = $1 or handle = $1 or email = $1',
+    'select id, email, handle, telegram_chat_id, push_subscription from users where id::text = $1 or handle = $1 or email = $1',
     [key],
   )
   if (rows.length > 1) throw new Error(`ambiguous user key ${JSON.stringify(key)} — use the user id`)
@@ -93,6 +101,14 @@ export async function createIntro(input: {
     // Telegram DM lands on a lock screen: intro-waiting text only, never the card.
     if (user.telegram_chat_id) {
       await notifyTelegram({ chatId: user.telegram_chat_id, text: tgIntroWaiting(`${base}?via=telegram`) })
+    }
+    // Push lands on a lock screen too: same intro-waiting payload, never the card.
+    if (user.push_subscription) {
+      await notifyPush({
+        userId: user.id,
+        subscription: user.push_subscription,
+        payload: pushIntroWaiting(`${base}?via=push`),
+      })
     }
   }
   await logEvent({ type: 'intro_proposed', metadata: { intro_id: id } })
@@ -212,9 +228,10 @@ async function sendRevealNotices(intro: IntroRow): Promise<void> {
     id: string
     email: string | null
     telegram_chat_id: string | null
+    push_subscription: PushSubscription | null
     display_name: string | null
     handle: string | null
-  }>('select id, email, telegram_chat_id, display_name, handle from users where id = any($1)', [ids])
+  }>('select id, email, telegram_chat_id, push_subscription, display_name, handle from users where id = any($1)', [ids])
   for (const [i, side] of sides.entries()) {
     const user = rows.find((u) => u.id === side.userId)
     if (!user) continue
@@ -223,12 +240,19 @@ async function sendRevealNotices(intro: IntroRow): Promise<void> {
       // Email carries no identity (unauthenticated, forwardable) — see above.
       await sendEmail({ to: user.email, ...revealNotice(url) })
     }
+    // Post-mutual-yes the counterpart's reveal name is allowed (M9d spec);
+    // same fallback chain as the reveal page: display_name → handle → none.
+    const other = rows.find((u) => u.id === sides[1 - i]!.userId)
+    const name = other ? (other.display_name ?? other.handle ?? null) : null
     if (user.telegram_chat_id) {
-      // Post-mutual-yes the counterpart's reveal name is allowed (M9d spec);
-      // same fallback chain as the reveal page: display_name → handle → none.
-      const other = rows.find((u) => u.id === sides[1 - i]!.userId)
-      const name = other ? (other.display_name ?? other.handle ?? null) : null
       await notifyTelegram({ chatId: user.telegram_chat_id, text: tgRevealNotice(url, name) })
+    }
+    if (user.push_subscription) {
+      await notifyPush({
+        userId: user.id,
+        subscription: user.push_subscription,
+        payload: pushRevealNotice(url, name),
+      })
     }
   }
 }
@@ -320,10 +344,11 @@ async function notifyMessageWaiting(intro: IntroRow, targetSide: 'a' | 'b'): Pro
   const targetId = targetSide === 'a' ? intro.user_a : intro.user_b
   const targetToken = targetSide === 'a' ? intro.token_a : intro.token_b
   if (!targetId) return
-  const { rows } = await getDb().query<{ email: string | null; telegram_chat_id: string | null }>(
-    'select email, telegram_chat_id from users where id = $1',
-    [targetId],
-  )
+  const { rows } = await getDb().query<{
+    email: string | null
+    telegram_chat_id: string | null
+    push_subscription: PushSubscription | null
+  }>('select email, telegram_chat_id, push_subscription from users where id = $1', [targetId])
   const target = rows[0]
   if (!target) return
   const url = `${appUrl()}/intro/${targetToken}`
@@ -331,6 +356,9 @@ async function notifyMessageWaiting(intro: IntroRow, targetSide: 'a' | 'b'): Pro
   // Identity-free like the email: "a message is waiting", never the body or a name.
   if (target.telegram_chat_id) {
     await notifyTelegram({ chatId: target.telegram_chat_id, text: tgMessageWaiting(url) })
+  }
+  if (target.push_subscription) {
+    await notifyPush({ userId: targetId, subscription: target.push_subscription, payload: pushMessageWaiting(url) })
   }
 }
 
@@ -384,10 +412,11 @@ export async function approveProposal(id: string): Promise<boolean> {
   const intro = rows[0]
   if (!intro) return false
   if (intro.user_b) {
-    const target = await db.query<{ email: string | null; telegram_chat_id: string | null }>(
-      'select email, telegram_chat_id from users where id = $1',
-      [intro.user_b],
-    )
+    const target = await db.query<{
+      email: string | null
+      telegram_chat_id: string | null
+      push_subscription: PushSubscription | null
+    }>('select email, telegram_chat_id, push_subscription from users where id = $1', [intro.user_b])
     const url = `${appUrl()}/intro/${intro.token_b}`
     const email = target.rows[0]?.email
     if (email) {
@@ -397,6 +426,10 @@ export async function approveProposal(id: string): Promise<boolean> {
     if (chatId) {
       // Lock-screen rule: the DM says an introduction waits — the card stays on the page.
       await notifyTelegram({ chatId, text: tgIntroWaiting(`${url}?via=telegram`) })
+    }
+    const sub = target.rows[0]?.push_subscription
+    if (sub) {
+      await notifyPush({ userId: intro.user_b, subscription: sub, payload: pushIntroWaiting(`${url}?via=push`) })
     }
   }
   await logEvent({ type: 'intro_proposed', metadata: { intro_id: id, via: 'agent_approved' } })
