@@ -199,9 +199,14 @@ console.log(`\nEvents, last 7 days:`)
 for (const r of eventsWeek) console.log(`  ${r.type}: ${r.n}`)
 if (eventsWeek.length === 0) console.log('  (none)')
 
-console.log(`\nGates (SCOPE.md — calibrate week 1, then frozen):
-  Seed (end of wk 2):  ≥15 of ~25 recruited installs activated       → now: ${activated}
-  Launch (+4 wks):     ≥150 installs                                 → now: ${fmt(npm.total)}
-                       ≥40% activation of installs                   → now: ${pct(activated, Math.max(npm.total, 0))}
-                       ≥10 intros proposed, ≥50% accepted            → now: ${introsProposed} proposed, ${pct(introsAccepted, introsProposed)} accepted
-                       ≥3 revealed pairs with a real exchange        → now: ${exchanges}`)
+// The gate lines quote company.md verbatim (frozen 2026-07-12) — this output
+// IS the scoreboard's source, so it must state the law, not an older draft.
+// Installs = npm downloads: an anonymous aggregate, upper-bound proxy (no
+// per-user install event exists — company.md instrumentation honesty note).
+console.log(`\nGates (company.md — frozen; installs = npm downloads, an upper-bound proxy):
+  SEED (14d from post #1):  ≥25 installs                              → now: ${fmt(npm.total)}
+                            ≥40% activation                           → now: ${pct(activated, Math.max(npm.total, 0))}
+  LAUNCH (4 wks):           ≥150 installs                             → now: ${fmt(npm.total)}
+                            ≥40% activation                           → now: ${pct(activated, Math.max(npm.total, 0))}
+                            ≥10 intros proposed, ≥50% accepted        → now: ${introsProposed} proposed, ${pct(introsAccepted, introsProposed)} accepted
+                            ≥3 real peer exchanges                    → now: ${exchanges}`)
