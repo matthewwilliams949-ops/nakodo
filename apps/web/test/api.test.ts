@@ -83,6 +83,31 @@ describe('registration', () => {
     expect(res.status).toBe(409)
   })
 
+  it('rate-limits registrations per IP hash and stores no raw IP (launch hardening)', async () => {
+    const fromIp = (ip: string) =>
+      register(
+        new Request('http://test/api/register', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
+          body: JSON.stringify({}),
+        }),
+      )
+    for (let i = 0; i < 3; i++) expect((await fromIp('203.0.113.7')).status).toBe(201)
+    const blocked = await fromIp('203.0.113.7')
+    expect(blocked.status).toBe(429)
+    // a different IP is unaffected
+    expect((await fromIp('203.0.113.8')).status).toBe(201)
+    // the raw IP appears nowhere — only the salted truncated hash
+    const events = await pg.query<{ metadata: Record<string, unknown> }>('select metadata from events')
+    for (const e of events.rows) {
+      expect(JSON.stringify(e.metadata)).not.toContain('203.0.113')
+    }
+    const registered = await pg.query<{ metadata: { ip_h?: string } }>(
+      "select metadata from events where type = 'registered'",
+    )
+    expect(registered.rows[0]!.metadata.ip_h).toMatch(/^[0-9a-f]{16}$/)
+  })
+
   it('stores display_name in the PII store (M8)', async () => {
     await registerUser('a@example.com', { display_name: 'Alice W' })
     const users = await pg.query<{ display_name: string }>('select display_name from users')
@@ -151,6 +176,16 @@ describe('events endpoint', () => {
     expect(res.status).toBe(201)
     const events = await pg.query<{ type: string }>('select type from events')
     expect(events.rows[0]!.type).toBe('client_front_door')
+  })
+
+  it('rejects oversized metadata — the unauthenticated endpoint is not bulk storage (launch hardening)', async () => {
+    const res = await postEvent(
+      jsonReq('/api/events', 'POST', { type: 'front_door', metadata: { blob: 'x'.repeat(9000) } }),
+    )
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { error: string }).error).toBe('metadata_too_large')
+    const events = await pg.query('select 1 from events')
+    expect(events.rows).toHaveLength(0)
   })
 })
 
