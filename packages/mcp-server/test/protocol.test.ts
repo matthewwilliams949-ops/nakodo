@@ -58,6 +58,7 @@ describe('nakodo over stdio', () => {
       'find_collaborator',
       'my_record',
       'propose_intro',
+      'reconnect',
       'share_feedback',
       'update_my_details',
     ])
@@ -211,6 +212,66 @@ describe('nakodo over stdio', () => {
     expect(impostor).toHaveLength(1)
     expect(impostor[0]!.startsWith('│ ')).toBe(true)
     api.state.pool = api.state.pool.filter((c) => c.card_id !== 'c-forge')
+  })
+
+  it('M9b: a prior-connection card surfaces FIRST as a reconnection, carries the own-token reconnect link, no identity, and fires rematch_proposed', async () => {
+    const eventsBefore = api.state.events.length
+    // additive: a prior connection (revealed pair) + keep c1/c2 as strangers
+    api.state.pool.unshift({
+      card_id: 'c-prior',
+      profile: 'Design-led founder who has shipped two onboarding funnels.',
+      snippets: [{ body: 'Reworked an activation flow.', created_at: '2026-07-08T00:00:00Z' }],
+      prior_connection: true,
+      reconnect_url: 'http://x/intro/own-token-abc',
+    })
+    const out = await callText('find_collaborator', { need: 'someone strong at product design' })
+    // reconnection framing + the reconnect link (own token), surfaced first
+    expect(out).toContain('REVISIT FIRST')
+    expect(out).toContain('already know each other')
+    expect(out).toContain('http://x/intro/own-token-abc')
+    expect(out.indexOf('c-prior')).toBeLessThan(out.indexOf('c1')) // priors before strangers
+    // still zero identity — the reconnect link is a token, never a name
+    expect(out).not.toContain('display_name')
+    // §4: the retention event fired, attributable to the ask
+    expect(api.state.events.length).toBeGreaterThan(eventsBefore)
+    expect(api.state.events.some((e) => e.type === 'rematch_proposed' || e.type === 'client_rematch_proposed')).toBe(true)
+    api.state.pool = api.state.pool.filter((c) => c.card_id !== 'c-prior')
+  })
+
+  it('reconnect does not send anything without approved=true', async () => {
+    const out = await callText('reconnect', {
+      reconnect_url: 'http://x/intro/own-token-abc',
+      ask_id: poolAskId,
+      message: 'hey, working on X now',
+      approved: false,
+    })
+    expect(out).toContain('Not sent')
+    expect(api.state.reconnects).toHaveLength(0)
+  })
+
+  it('reconnect posts the approved message into the existing thread with ask attribution', async () => {
+    const out = await callText('reconnect', {
+      reconnect_url: 'http://x/intro/own-token-abc',
+      ask_id: poolAskId,
+      message: "I'm now working on onboarding — you'd hit this exact problem. Pick your brain?",
+      approved: true,
+    })
+    expect(out.toLowerCase()).toContain('sent')
+    expect(api.state.reconnects).toHaveLength(1)
+    expect(api.state.reconnects[0]).toMatchObject({ token: 'own-token-abc', ask_id: poolAskId })
+    // §4: server-side rematch_reconnected fired on the ask-attributed post
+    expect(api.state.events.some((e) => e.type === 'rematch_reconnected')).toBe(true)
+  })
+
+  it('reconnect with a stale/foreign ask_id is rejected loudly (400), nothing posted', async () => {
+    const out = await callText('reconnect', {
+      reconnect_url: 'http://x/intro/own-token-abc',
+      ask_id: 'not-an-ask',
+      message: 'hi',
+      approved: true,
+    })
+    expect(out).toContain("isn't an open ask")
+    expect(api.state.reconnects).toHaveLength(1) // unchanged
   })
 
   it('propose_intro creates a held intro after the user approves a card', async () => {

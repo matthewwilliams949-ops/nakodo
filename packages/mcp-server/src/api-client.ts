@@ -54,6 +54,13 @@ export interface PoolCard {
   card_id: string
   profile: string
   snippets: { body: string; created_at: string }[]
+  // M9b: set only for a card whose owner shares a previously REVEALED intro with
+  // the requester. Still zero identity — no name ever enters a pool response.
+  // `reconnect_url` carries the REQUESTER's OWN intro token (their existing
+  // credential), never the counterpart's. (api-contract addendum pending; fields
+  // defined by agent-rematches-m9b.md §1.)
+  prior_connection?: boolean
+  reconnect_url?: string
 }
 
 // GET /api/pool response — note the key is `pool` (not `cards`), per T2.
@@ -165,6 +172,16 @@ export class ApiClient {
   // M8. 10/day cap → 429. Response is `{ ok: true }` — nothing to do with a row.
   shareFeedback(input: { moment: string; sentiment: string; body: string }): Promise<{ ok: true }> {
     return this.request('POST', '/api/feedback', input)
+  }
+
+  // M9b (api-contract-m9b): reconnect with a prior connection by posting an
+  // approved message into their EXISTING revealed thread, with `ask_id` so the
+  // server can attribute the reconnect (fires rematch_reconnected). Same message
+  // path the web thread uses — revealed-intros-only is enforced server-side; a
+  // foreign/stale ask_id is 400 (loud, never silently dropped). `token` is the
+  // requester's own intro token, from the reconnect_url find_collaborator surfaced.
+  reconnectMessage(token: string, message: string, ask_id: string): Promise<{ view: string; message_sent: true }> {
+    return this.request('POST', `/api/intro/${encodeURIComponent(token)}`, { message, ask_id })
   }
 
   // Telemetry must never break the user experience — swallow all failures.

@@ -13,6 +13,10 @@ export interface PoolCard {
   card_id: string
   profile: string
   snippets: { body: string; created_at: string }[]
+  // M9b: prior-connection marking (revealed-pair only); reconnect_url is the
+  // requester's own token. No identity ever.
+  prior_connection?: boolean
+  reconnect_url?: string
 }
 
 export type PendingState = 'card' | 'say_hello' | 'message_waiting'
@@ -39,6 +43,8 @@ export interface MockState {
   feedback: { moment: string; sentiment?: string; body: string }[]
   // Fixture toggle for the 10/day cap (429).
   feedbackRateLimited: boolean
+  // M9b: reconnect messages posted into an existing thread via /api/intro/[token].
+  reconnects: { token: string; message: string; ask_id?: string }[]
 }
 
 const TEST_TOKEN = 'test-token-1234'
@@ -78,6 +84,7 @@ export async function startMockApi(): Promise<MockApi> {
     overProposedCardIds: [],
     feedback: [],
     feedbackRateLimited: false,
+    reconnects: [],
   }
 
   const server: Server = createServer((req, res) => {
@@ -91,6 +98,20 @@ export async function startMockApi(): Promise<MockApi> {
       const json = (status: number, payload: unknown) => {
         res.writeHead(status, { 'content-type': 'application/json' })
         res.end(JSON.stringify(payload))
+      }
+
+      // M9b: reconnect posts to the dynamic /api/intro/<token> message path (the
+      // token authenticates the side, not Bearer). ask_id, if present, must be an
+      // open ask of the poster's — else 400, loud (never a silent mis-attribution).
+      if (req.method === 'POST' && req.url?.startsWith('/api/intro/')) {
+        const token = decodeURIComponent(req.url.slice('/api/intro/'.length))
+        if (body.ask_id !== undefined && !state.openAskIds.includes(body.ask_id)) {
+          return json(400, { error: 'invalid_body' })
+        }
+        state.reconnects.push({ token, message: body.message, ask_id: body.ask_id })
+        // server-side event on a valid ask-attributed reconnect
+        if (body.ask_id) state.events.push({ type: 'rematch_reconnected' })
+        return json(200, { view: 'revealed', message_sent: true })
       }
 
       switch (route) {
