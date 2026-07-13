@@ -14,7 +14,8 @@ All `[[ ]]` placeholders are **filled**: Matthew Williams / Esmarchstraße 15, 1
 
 1. ~~**`hello@nakodo.dev` must actually receive mail.**~~ ✅ Confirmed 2026-07-11 — Porkbun forwarding to Gmail is on.
 
-2. **🚩 DB region vs. the site's public claim — a real trust-accuracy bug.** The homepage ([apps/web/app/page.tsx:65](../../apps/web/app/page.tsx)) states *"Data lives in the EU (Frankfurt)."* The actual Supabase database is on `aws-1-eu-west-2` = AWS **London (UK)** — not Frankfurt, not the EU. This is a false, load-bearing claim on a trust-first product's landing page; a technical reader who checks will catch it. **Decide one:**
+2. **✅ RESOLVED 2026-07-12 — DB is in Frankfurt.** *(Was: homepage claimed "Data lives in the EU (Frankfurt)" while the DB was on AWS London.)* The Frankfurt cutover happened same-day; verified 2026-07-12 the DB runs on `eu-central-1` (Frankfurt), so the homepage claim is true and the privacy processor line can drop its ⚠. Original note kept below for history:
+   ~~**🚩 DB region vs. the site's public claim.** The homepage stated "Data lives in the EU (Frankfurt)" while the actual Supabase database was on `aws-1-eu-west-2` = AWS London (UK). Decide one:~~
    - **Move the DB to Frankfurt (`eu-central-1`)** so the claim becomes true. Best done *now* — there's ~1 row of real data, so migration cost is near-zero, and the launch sweep zeros even that. (CTO task: Supabase can't relocate a project in place — recreate in eu-central-1, swap `DATABASE_URL`, `pnpm db:apply`.) *Recommended.*
    - **Or** soften the site copy to match reality (UK is GDPR-adequate, but "Frankfurt/EU" is a stronger story than "London/UK").
    The privacy policy's processor line is written to the Frankfurt target and carries an inline ⚠ until this is resolved.

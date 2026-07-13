@@ -737,7 +737,7 @@ export function registerTools(server: McpServer): void {
       description:
         'Connect Telegram so the user hears about introductions on their phone, between sessions. ' +
         'Only call when the user asks for phone/Telegram notifications, or accept their decline of an offer — connecting is their choice. ' +
-        'Returns a t.me link: give it to the user EXACTLY as returned; they tap it and press Start in their own Telegram app, which is what completes the connection (the link expires in 30 minutes — mint a fresh one if it lapses). ' +
+        'Returns a t.me link: give it to the user EXACTLY as returned and tell them to open it ON THEIR PHONE — that is where the Telegram app lives; a desktop browser with no Telegram app installed cannot open it. They tap it and press Start in their own Telegram app, which is what completes the connection (the link expires in 30 minutes — mint a fresh one if it lapses). ' +
         'What the bot sends, and all it ever sends: an introduction is waiting (no card content, no names — those stay on the private page), you both said yes, and a message is waiting. ' +
         'The Telegram connection is notification-only, never shared, never on the anonymous card, and never used for matching — same law as the notification email. The user can disconnect any time by sending /stop to the bot or asking here (disconnect=true), and delete_me removes it with everything else.',
       inputSchema: {
@@ -758,7 +758,7 @@ export function registerTools(server: McpServer): void {
         const { url, expires_in_minutes } = await client().connectTelegram()
         return text(
           [
-            `Give the user this link exactly as written — they tap it and press Start, and that completes the connection (nothing binds until they do):`,
+            `Give the user this link exactly as written, and tell them to open it on their phone — that's where the Telegram app lives (a desktop browser with no Telegram app can't open it). They tap the link and press Start, which completes the connection (nothing binds until they do):`,
             ``,
             `  ${url}`,
             ``,
