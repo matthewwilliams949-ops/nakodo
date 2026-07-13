@@ -1,6 +1,6 @@
 # Privacy Policy
 
-*Last updated: 2026-07-11 · Controller: Matthew Williams, Esmarchstraße 15, 10407 Berlin, Germany · Contact: hello@nakodo.dev*
+*Last updated: 2026-07-13 · Controller: Matthew Williams, Esmarchstraße 15, 10407 Berlin, Germany · Contact: hello@nakodo.dev*
 
 Nakodo is built so that your identity is never the product. This policy explains, in plain terms, exactly what we hold, why, and the control you have over it. It is written to meet our obligations under the EU General Data Protection Regulation (GDPR) and German data-protection law.
 
@@ -12,7 +12,7 @@ The data controller is **Matthew Williams** ("we", "us"), contactable at **hello
 
 - Your profile carries **no identity** — no name, no links, nothing personally identifying. Agents match on the work, not the person.
 - We ask for **no** password, payment details, or government ID. We never handle those.
-- Email is **optional** and used only to notify you — it is never shown to a match and never shared.
+- Notification channels (email, Telegram, browser push) are **optional** and used only to notify you — never shown to a match, never shared.
 - Contact details are exchanged **only** by the two people themselves, inside a thread, after a mutual yes. We never transmit them on anyone's behalf.
 - You can delete everything with one instruction to your agent ("delete me"). It is real deletion, not deactivation.
 
@@ -23,6 +23,8 @@ We only collect what the service needs to function. We do **not** collect your n
 | Data | Why we hold it | Legal basis (GDPR Art. 6) |
 |---|---|---|
 | **Email address** (optional) | To notify you that a card is waiting or a message has arrived | Consent — Art. 6(1)(a). You provide it only if you want notifications; withdraw anytime. |
+| **Telegram chat id** (optional) | To notify you on Telegram, if you connect it — created only when you tap the connect link and press Start in your own Telegram app; removed when you send /stop, disconnect via your agent, or delete your record | Consent — Art. 6(1)(a) |
+| **Browser push subscription** (optional) | To notify you on a device where you clicked "notify me on this device" and granted your browser's permission; removed when you disable it or delete your record | Consent — Art. 6(1)(a) |
 | **Display name** (optional) | The name a match may call you *after* you both say yes | Consent — Art. 6(1)(a) |
 | **Handle / location** (optional) | Coarse context you choose to add | Consent — Art. 6(1)(a) |
 | **Your profile & work snippets** (agent-drafted, approved by you) | The basis for matching; each entry is captured only with your explicit approval | Performance of the service you requested — Art. 6(1)(b) |
@@ -31,6 +33,8 @@ We only collect what the service needs to function. We do **not** collect your n
 | **A per-install token** | To authenticate your agent's connection to your record | Art. 6(1)(b) |
 | **How your agent found us ("source")** | Aggregate understanding of which channels work | Legitimate interest — Art. 6(1)(f); it is internal-only and never shared |
 | **Minimal product events** (e.g. "a snippet was captured"), tied to an install id | To understand whether the product works, in aggregate | Legitimate interest — Art. 6(1)(f) |
+| **Technical access data** (your IP address and request metadata, in short-lived server logs at our hosting provider) | To deliver the website and API and to detect faults, attacks, and misuse | Legitimate interest — Art. 6(1)(f). Not combined with your record; retained only briefly. |
+| **An anti-abuse signal at sign-up** (a salted, truncated cryptographic hash derived from the IP address — we never store the raw IP) | To rate-limit registrations and prevent automated abuse | Legitimate interest — Art. 6(1)(f) |
 
 ## 4. How introductions are reviewed
 
@@ -44,17 +48,24 @@ Matching is performed by *your own* AI agent over a pool of identity-free profil
 
 We use a small number of processors, each under a data-processing agreement, chosen to keep data in the EU where possible:
 
-- **Vercel** — website and application hosting.
-- **Supabase** — the database, hosted on AWS in the **Europe (Frankfurt) region**. ⚠️ *See region flag below — this line must match reality before publishing.*
+- **Vercel** — website and application hosting (including the short-lived server logs described above).
+- **Supabase** — the database, hosted on AWS in the **Europe (Frankfurt) region**.
 - **Resend** — sending notification emails, configured in the EU region.
 
-*(Matthew: confirm each processor's region and that an AVV/DPA is signed before publishing. Vercel and Resend are US-incorporated — a US-based processor with EU-region data must be covered by EU Standard Contractual Clauses and/or the EU–US Data Privacy Framework; both offer these under their DPAs, but confirm you've accepted them.)*
+If you choose to connect an optional notification channel, the notification is necessarily delivered through that channel's own service, acting on your choice:
+
+- **Telegram** — if you connect the Telegram bot, notification messages (which never contain card content; a name only after a mutual yes) are delivered via Telegram's service under [Telegram's own privacy policy](https://telegram.org/privacy). Connecting is your choice; /stop disconnects instantly.
+- **Your browser's push service** (operated by your browser vendor, e.g. Google, Apple, or Mozilla) — if you enable push notifications on a device, the notification payload is delivered through it. Enabling is your choice via your browser's own permission prompt.
 
 We do **not** sell your data, and we do not share it with advertisers or data brokers. Ever.
 
 ## 7. International transfers
 
-We aim to keep all personal data within the EU/EEA. Where a processor transfers data outside the EEA, it is done under an approved safeguard (EU Standard Contractual Clauses or an adequacy decision). Details available on request at hello@nakodo.dev.
+We aim to keep all personal data within the EU/EEA. Where a processor transfers data outside the EEA, it is done under an approved safeguard (EU Standard Contractual Clauses or an adequacy decision). The optional notification channels above (Telegram, your browser's push service) deliver messages through services that may process data outside the EEA — they run only if you actively connect them, and you can disconnect at any time. Details available on request at hello@nakodo.dev.
+
+## 7a. Cookies and device storage
+
+The website sets **no cookies** — none for tracking, none for advertising, and currently none at all — so there is no cookie banner, because there is nothing to consent to. If you enable push notifications, your browser stores the subscription on your device; that happens only through your browser's own explicit permission prompt and can be revoked there at any time.
 
 ## 8. How long we keep it
 
@@ -78,6 +89,3 @@ Access to your record is gated by an unguessable per-install token. Introduction
 
 If we change this policy we will update the date above and, for material changes, note it where you'd reasonably see it. Continued use after a change means you accept the updated policy.
 
----
-
-*Draft — not legal advice. See [README](README.md) before publishing.*

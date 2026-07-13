@@ -48,7 +48,3 @@ These terms are governed by the laws of the Federal Republic of Germany, excludi
 ## 9. Contact
 
 Questions about these terms: **hello@nakodo.dev**. How we handle your data: see our [Privacy Policy](/privacy).
-
----
-
-*Draft — not legal advice. See [README](README.md) before publishing.*

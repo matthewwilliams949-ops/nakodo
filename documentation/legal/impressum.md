@@ -20,8 +20,6 @@ Matthew Williams, Anschrift wie oben / address as above.
 
 ---
 
-## EU-Streitschlichtung / EU dispute resolution
-
-Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: https://ec.europa.eu/consumers/odr/. Unsere E-Mail-Adresse finden Sie oben.
+## Verbraucherstreitbeilegung / Consumer dispute resolution
 
 Wir sind nicht verpflichtet und nicht bereit, an einem Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen. / We are not obligated, and do not intend, to participate in dispute-resolution proceedings before a consumer arbitration board.
