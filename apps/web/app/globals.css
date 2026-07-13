@@ -227,3 +227,22 @@ textarea::placeholder, input::placeholder { color: var(--muted); }
   /* the one thing allowed to keep moving */
   .cursor::after { animation: blink 1.2s steps(2, jump-none) infinite; }
 }
+
+/* Legal pages (privacy / terms / impressum) — rendered from markdown (lib/legal.ts) */
+.legal { font-family: var(--sans); color: var(--fg); line-height: 1.6; }
+.legal h1 { font-size: 1.6rem; margin: 0 0 1rem; }
+.legal h2 { font-size: 1.15rem; margin: 2rem 0 0.5rem; }
+.legal h3 { font-size: 1rem; margin: 1.5rem 0 0.4rem; }
+.legal a { color: var(--accent); }
+.legal em { color: var(--muted); }
+.legal hr { border: none; border-top: 1px solid var(--line); margin: 2rem 0; }
+.legal ul { padding-left: 1.2rem; }
+.legal table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+.legal th, .legal td { border: 1px solid var(--line); padding: 0.5rem 0.6rem; text-align: left; vertical-align: top; }
+.legal th { color: var(--muted); font-weight: 500; }
+.legal code { font-family: var(--mono); font-size: 0.9em; }
+
+/* Site footer — legal links */
+.site-footer { max-width: 40rem; margin: 0 auto; padding: 2rem 1.5rem 3rem; display: flex; gap: 1.5rem; font-family: var(--mono); font-size: 0.85rem; }
+.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a:hover { color: var(--fg); }

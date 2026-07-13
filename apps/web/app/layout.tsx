@@ -31,6 +31,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           人 nakodo
         </a>
         {children}
+        <footer className="site-footer">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="/impressum">Impressum</a>
+        </footer>
       </body>
     </html>
   )
