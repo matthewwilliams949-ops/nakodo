@@ -264,7 +264,12 @@ createServer(async (req, res) => {
       res.writeHead(404).end('not found')
     }
   } catch (e) {
-    res.writeHead(500, { 'content-type': 'text/plain' }).end(String(e))
+    // Guard against ERR_HTTP_HEADERS_SENT: if a handler already started the
+    // response and then threw, writing headers again throws here — and since
+    // this callback has no outer catch, that would crash the whole panel on a
+    // single bad request. Only write the 500 if nothing was sent yet.
+    if (res.headersSent) res.end()
+    else res.writeHead(500, { 'content-type': 'text/plain' }).end(String(e))
   }
 }).listen(PORT, '127.0.0.1', () => {
   console.log(`Nakodo e2e panel → http://localhost:${PORT}`)
