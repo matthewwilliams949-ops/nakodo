@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
   "name": "dev.nakodo/nakodo",
-  "description": "Get the outside perspective your agent can't give \u2014 a warm introduction to the right builder, matched privately on your actual work. No feed, no faces; profiles are never displayed, only compared. Anonymous cards, double opt-in, invisible declines.",
+  "description": "Warm introductions to the right builder, matched privately on your work. Double opt-in, no feed.",
   "repository": {
     "url": "https://github.com/matthewwilliams949-ops/nakodo",
     "source": "github"
